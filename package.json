@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "backend"
+    "backend",
+    "frontend"
   ],
   "scripts": {
     "dev:backend": "npm run start:dev --workspace=student-management-system",
@@ -16,7 +17,11 @@
     "test:cov": "npm run test:cov --workspace=student-management-system",
     "test:e2e": "cd backend && DATABASE_URL=\"$(node --input-type=module -e 'import \"dotenv/config\"; const u = new URL(process.env.DATABASE_URL); u.pathname = \"/student_management_test\"; console.log(u.toString());')\" npm run test:e2e",
     "db:generate": "npm run db:generate --workspace=student-management-system",
-    "db:migrate": "npm run db:migrate --workspace=student-management-system"
+    "db:migrate": "npm run db:migrate --workspace=student-management-system",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "lint:frontend": "npm run lint --workspace=frontend",
+    "preview:frontend": "npm run preview --workspace=frontend"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
