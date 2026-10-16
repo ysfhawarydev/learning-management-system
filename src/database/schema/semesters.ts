@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   uuid,
   timestamp,
@@ -9,6 +9,7 @@ import {
   check,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { courseOfferings } from './course_offerings.js';
 
 export const semesterTerm = pgEnum('term', [
   'spring',
@@ -52,3 +53,7 @@ export const semesters = pgTable(
     ),
   ],
 );
+
+export const semestersRelations = relations(semesters, ({ many }) => ({
+  courseOfferings: many(courseOfferings),
+}));
