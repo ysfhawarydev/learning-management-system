@@ -9,7 +9,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { departments } from './departments.js';
 import { relations, sql } from 'drizzle-orm';
-import { courseOfferings } from './course_offerings.js';
+import { courseOfferings } from './course-offerings.js';
 
 export const courses = pgTable(
   'courses',

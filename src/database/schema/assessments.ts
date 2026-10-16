@@ -7,7 +7,7 @@ import {
   check,
   numeric,
 } from 'drizzle-orm/pg-core';
-import { courseOfferings } from './course_offerings.js';
+import { courseOfferings } from './course-offerings.js';
 import { relations, sql } from 'drizzle-orm';
 import { grades } from './grades.js';
 

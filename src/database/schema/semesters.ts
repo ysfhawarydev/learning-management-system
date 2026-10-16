@@ -9,16 +9,16 @@ import {
   check,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { courseOfferings } from './course_offerings.js';
+import { courseOfferings } from './course-offerings.js';
 
-export const semesterTerm = pgEnum('term', [
+export const semesterTerm = pgEnum('semester_term', [
   'spring',
   'summer',
   'fall',
   'winter',
 ]);
 
-export const semesterStatus = pgEnum('status', [
+export const semesterStatus = pgEnum('semester_status', [
   'planned',
   'active',
   'completed',

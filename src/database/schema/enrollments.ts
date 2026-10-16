@@ -1,6 +1,6 @@
 import { uuid, timestamp, pgTable, pgEnum, unique } from 'drizzle-orm/pg-core';
 import { students } from './students.js';
-import { courseOfferings } from './course_offerings.js';
+import { courseOfferings } from './course-offerings.js';
 import { relations } from 'drizzle-orm';
 import { grades } from './grades.js';
 

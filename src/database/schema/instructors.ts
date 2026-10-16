@@ -2,7 +2,7 @@ import { uuid, timestamp, pgTable, varchar } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 import { departments } from './departments.js';
 import { relations } from 'drizzle-orm';
-import { courseOfferings } from './course_offerings.js';
+import { courseOfferings } from './course-offerings.js';
 
 export const instructors = pgTable('instructors', {
   id: uuid('id').primaryKey().defaultRandom(),
