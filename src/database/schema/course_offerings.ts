@@ -12,6 +12,7 @@ import { semesters } from './semesters.js';
 import { instructors } from './instructors.js';
 import { relations, sql } from 'drizzle-orm';
 import { enrollments } from './enrollments.js';
+import { assessments } from './assessments.js';
 
 export const courseOfferings = pgTable(
   'course_offerings',
@@ -74,5 +75,6 @@ export const courseOfferingsRelations = relations(
     }),
 
     enrollments: many(enrollments),
+    assessments: many(assessments),
   }),
 );
