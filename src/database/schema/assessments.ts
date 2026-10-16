@@ -9,12 +9,14 @@ import {
 } from 'drizzle-orm/pg-core';
 import { courseOfferings } from './course_offerings.js';
 import { relations, sql } from 'drizzle-orm';
+import { grades } from './grades.js';
 
 export const assessmentType = pgEnum('assessment_type', [
   'assignment',
   'quiz',
   'midterm',
   'final',
+  'project',
 ]);
 
 export const assessments = pgTable(
@@ -47,9 +49,11 @@ export const assessments = pgTable(
   ],
 );
 
-export const assessmentsRelations = relations(assessments, ({ one }) => ({
+export const assessmentsRelations = relations(assessments, ({ one, many }) => ({
   courseOffering: one(courseOfferings, {
     fields: [assessments.courseOfferingId],
     references: [courseOfferings.id],
   }),
+
+  grades: many(grades),
 }));

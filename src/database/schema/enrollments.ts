@@ -2,6 +2,7 @@ import { uuid, timestamp, pgTable, pgEnum, unique } from 'drizzle-orm/pg-core';
 import { students } from './students.js';
 import { courseOfferings } from './course_offerings.js';
 import { relations } from 'drizzle-orm';
+import { grades } from './grades.js';
 
 export const enrollmentStatus = pgEnum('enrollment_status', [
   'enrolled',
@@ -43,7 +44,7 @@ export const enrollments = pgTable(
   ],
 );
 
-export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
+export const enrollmentsRelations = relations(enrollments, ({ one, many }) => ({
   student: one(students, {
     fields: [enrollments.studentId],
     references: [students.id],
@@ -53,4 +54,6 @@ export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
     fields: [enrollments.courseOfferingId],
     references: [courseOfferings.id],
   }),
+
+  grades: many(grades),
 }));
