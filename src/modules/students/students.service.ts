@@ -228,7 +228,11 @@ export class StudentsService {
   }
 
   async update(id: string, dto: UpdateStudentDto) {
-    if (Object.keys(dto).length === 0) {
+    const hasUpdateFields = Object.values(dto).some(
+      (value) => value !== undefined,
+    );
+
+    if (!hasUpdateFields) {
       throw new BadRequestException('Provide at least one field to update');
     }
 

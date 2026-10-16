@@ -33,7 +33,7 @@ export class StudentsController {
   @Patch(':id')
   @Roles('admin')
   update(
-    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStudentDto,
   ) {
     return this.studentsService.update(id, dto);
