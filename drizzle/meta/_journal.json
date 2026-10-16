@@ -8,6 +8,13 @@
       "when": 1792148179638,
       "tag": "0000_marvelous_brother_voodoo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792158162060,
+      "tag": "0001_nifty_leopardon",
+      "breakpoints": true
     }
   ]
 }

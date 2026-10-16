@@ -37,6 +37,7 @@ export const students = pgTable('students', {
   phone: varchar('phone', { length: 50 }),
   birth: date('birth', { mode: 'string' }).notNull(),
   status: studentStatus('status').default('applicant').notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
