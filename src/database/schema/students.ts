@@ -9,6 +9,7 @@ import {
 import { users } from './users.js';
 import { relations } from 'drizzle-orm';
 import { departments } from './departments.js';
+import { enrollments } from './enrollments.js';
 
 export const studentStatus = pgEnum('student_status', [
   'applicant',
@@ -44,7 +45,7 @@ export const students = pgTable('students', {
     .notNull(),
 });
 
-export const studentsRelations = relations(students, ({ one }) => ({
+export const studentsRelations = relations(students, ({ one, many }) => ({
   user: one(users, {
     fields: [students.userId],
     references: [users.id],
@@ -54,4 +55,6 @@ export const studentsRelations = relations(students, ({ one }) => ({
     fields: [students.departmentId],
     references: [departments.id],
   }),
+
+  enrollments: many(enrollments),
 }));

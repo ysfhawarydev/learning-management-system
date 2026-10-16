@@ -11,6 +11,7 @@ import { courses } from './courses.js';
 import { semesters } from './semesters.js';
 import { instructors } from './instructors.js';
 import { relations, sql } from 'drizzle-orm';
+import { enrollments } from './enrollments.js';
 
 export const courseOfferings = pgTable(
   'course_offerings',
@@ -41,7 +42,10 @@ export const courseOfferings = pgTable(
       .notNull(),
   },
   (table) => [
-    check('course_offerings_capacity_check', sql`${table.capacity} IS NULL OR ${table.capacity} > 0`),
+    check(
+      'course_offerings_capacity_check',
+      sql`${table.capacity} IS NULL OR ${table.capacity} > 0`,
+    ),
 
     unique('course_offerings_course_id_semester_id_section_code_unique').on(
       table.courseId,
@@ -53,7 +57,7 @@ export const courseOfferings = pgTable(
 
 export const courseOfferingsRelations = relations(
   courseOfferings,
-  ({ one }) => ({
+  ({ one, many }) => ({
     course: one(courses, {
       fields: [courseOfferings.courseId],
       references: [courses.id],
@@ -68,5 +72,7 @@ export const courseOfferingsRelations = relations(
       fields: [courseOfferings.instructorId],
       references: [instructors.id],
     }),
+
+    enrollments: many(enrollments),
   }),
 );
