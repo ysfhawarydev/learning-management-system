@@ -1,118 +1,137 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Student Management System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A full-stack Student Management System repository, organized as an npm-workspaces monorepo.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Repository Structure
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```text
+student-management-system/
+├── backend/             # NestJS API
+│   ├── src/              # Application source
+│   ├── test/             # End-to-end tests
+│   ├── drizzle/          # Database migrations and snapshots
+│   ├── .env.example      # Backend environment template
+│   └── package.json
+├── package.json          # Workspace configuration and root scripts
+├── package-lock.json     # Shared npm lockfile
+└── README.md
 ```
 
-## Compile and run the project
+## Technology Stack
+
+- **Backend:** NestJS, TypeScript, Node.js
+- **Database:** PostgreSQL
+- **ORM and migrations:** Drizzle ORM and Drizzle Kit
+- **Validation and authentication:** class-validator, JWT, Argon2
+- **Testing:** Vitest and Supertest
+- **Package management:** npm workspaces
+
+## Prerequisites
+
+Install a compatible Node.js version, npm, and PostgreSQL. Use the Node.js version supported by the project's dependencies.
+
+## Getting Started
+
+### 1. Install dependencies
+
+Run this command from the repository root:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+### 2. Configure environment variables
+
+Copy the backend environment template:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp backend/.env.example backend/.env
 ```
 
-## Deployment
+Update `backend/.env` with your local PostgreSQL connection details and the other values required by the template.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Never commit `.env` files or real credentials.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 3. Prepare the database
+
+Create the PostgreSQL database configured in `DATABASE_URL`.
+
+Review the existing Drizzle migrations before applying them. To apply migrations to the configured database:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run db:migrate
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**Important:** `db:migrate` targets the database configured for the backend. Verify `DATABASE_URL` before running it, especially when using a shared or production database.
 
-## Observability
+### 4. Start the backend
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Development mode with automatic reload:
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+```bash
+npm run dev:backend
+```
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+Build the backend:
 
-This project is already instrumented. Create a free account at [observe.nestjs.com](https://observe.nestjs.com), add an application, and paste the generated app key and secret into the `ObserveModule.forRoot()` call in `src/app.module.ts`.
+```bash
+npm run build
+```
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+Start the backend without watch mode:
 
-## Resources
+```bash
+npm run start:backend
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## Available Root Commands
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Command | Purpose |
+| --- | --- |
+| `npm run dev:backend` | Start the backend in watch mode |
+| `npm run start:backend` | Start the backend |
+| `npm run build` | Build the backend |
+| `npm run lint` | Lint backend source and tests |
+| `npm run format` | Format backend source and tests |
+| `npm run test` | Run unit tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:cov` | Run tests with coverage |
+| `npm run test:e2e` | Run end-to-end tests against the dedicated test database |
+| `npm run db:generate` | Generate Drizzle migrations from schema changes |
+| `npm run db:migrate` | Apply pending Drizzle migrations |
 
-## Support
+## Testing
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Run the unit tests:
 
-## Stay in touch
+```bash
+npm run test
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Run the end-to-end tests:
 
-## License
+```bash
+npm run test:e2e
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+The root `test:e2e` script rewrites the database name in `DATABASE_URL` to `student_management_test` before launching the backend E2E suite.
+
+Create that dedicated test database before running E2E tests. Confirm the connection points to the intended PostgreSQL server and that the test database exists.
+
+**Never remove the E2E database safety checks or point the test suite at a development or production database.** The E2E suite may create, update, and delete records in its test database.
+
+## Working With npm Workspaces
+
+Run commands from the repository root whenever a root script is available. To run a command directly inside the backend workspace, use:
+
+```bash
+npm run <script> --workspace=student-management-system
+```
+
+## Version Control
+
+Use Git to track changes. Work on a feature branch, review the diff, run the relevant checks, and commit only after verifying the changes.
+
+## Project Status
+
+The repository currently contains the NestJS backend, authentication and student-management functionality, PostgreSQL schema, Drizzle migrations, and unit and E2E tests. The frontend workspace has not yet been added.

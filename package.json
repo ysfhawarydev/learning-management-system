@@ -1,66 +1,31 @@
 {
-  "name": "student-management-system",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "name": "student-management-system-monorepo",
+  "version": "1.0.0",
   "private": true,
-  "license": "UNLICENSED",
-  "type": "module",
+  "workspaces": [
+    "backend"
+  ],
   "scripts": {
-    "build": "nest build",
-    "deploy": "nest deploy",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "oxlint --type-aware src/ test/",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:cov": "vitest run --coverage",
-    "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "dev:backend": "npm run start:dev --workspace=student-management-system",
+    "start:backend": "npm run start --workspace=student-management-system",
+    "build": "npm run build --workspace=student-management-system",
+    "lint": "npm run lint --workspace=student-management-system",
+    "format": "npm run format --workspace=student-management-system",
+    "test": "npm run test --workspace=student-management-system",
+    "test:watch": "npm run test:watch --workspace=student-management-system",
+    "test:cov": "npm run test:cov --workspace=student-management-system",
+    "test:e2e": "cd backend && DATABASE_URL=\"$(node --input-type=module -e 'import \"dotenv/config\"; const u = new URL(process.env.DATABASE_URL); u.pathname = \"/student_management_test\"; console.log(u.toString());')\" npm run test:e2e",
+    "db:generate": "npm run db:generate --workspace=student-management-system",
+    "db:migrate": "npm run db:migrate --workspace=student-management-system"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.0"
     }
   },
-  "dependencies": {
-    "@nestjs/common": "^12.0.1",
-    "@nestjs/config": "^12.0.1",
-    "@nestjs/core": "^12.0.1",
-    "@nestjs/jwt": "^12.0.3",
-    "@nestjs/observe": "^0.3.0",
-    "@nestjs/platform-express": "^12.0.1",
-    "argon2": "^0.45.1",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
-    "dotenv": "^18.0.8",
-    "drizzle-orm": "^0.45.4",
-    "pg": "^8.23.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
-  },
-  "devDependencies": {
-    "@nestjs/cli": "^12.0.0",
-    "@nestjs/schematics": "^12.0.0",
-    "@nestjs/testing": "^12.0.1",
-    "@types/express": "^5.0.0",
-    "@types/node": "^24.0.0",
-    "@types/pg": "^8.23.1",
-    "@types/supertest": "^7.0.0",
-    "@vitest/coverage-v8": "^4.1.2",
-    "drizzle-kit": "^0.31.11",
-    "oxlint": "^1.58.0",
-    "oxlint-tsgolint": "^7.0.2001",
-    "prettier": "^3.4.2",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.0",
-    "vitest": "^4.1.2"
+  "allowScripts": {
+    "argon2@0.45.1": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.25.12": true
   }
 }
