@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import { uuid, timestamp, pgTable, varchar, text } from 'drizzle-orm/pg-core';
 import { instructors } from './instructors.js';
 import { students } from './students.js';
+import { courses } from './courses.js';
 
 export const departments = pgTable('departments', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -19,4 +20,5 @@ export const departments = pgTable('departments', {
 export const departmentsRelations = relations(departments, ({ many }) => ({
   instructors: many(instructors),
   students: many(students),
+  courses: many(courses),
 }));
