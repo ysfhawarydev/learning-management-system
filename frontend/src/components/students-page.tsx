@@ -1,17 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Plus, Search, Users, X } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react';
 
 import { useAuth } from '@/hooks/use-auth';
 import {
   ApiError,
   createStudent,
+  deleteStudent,
   getDepartments,
   getStudents,
+  updateStudent,
 } from '../lib/api';
-import type { Department, Student } from '../lib/api';
+import type { Department, Student, UpdateStudentInput } from '../lib/api';
 
 const TODAY = new Date().toISOString().slice(0, 10);
+
+const STUDENT_STATUSES = [
+  'applicant',
+  'enrolled',
+  'on_leave',
+  'probation',
+  'graduated',
+  'withdrawn',
+] as const;
 
 interface StudentForm {
   email: string;
@@ -23,6 +34,15 @@ interface StudentForm {
   birth: string;
 }
 
+interface EditStudentForm {
+  departmentId: string;
+  number: string;
+  firstName: string;
+  lastName: string;
+  birth: string;
+  status: NonNullable<UpdateStudentInput['status']>;
+}
+
 const INITIAL_FORM: StudentForm = {
   email: '',
   password: '',
@@ -32,6 +52,19 @@ const INITIAL_FORM: StudentForm = {
   lastName: '',
   birth: '',
 };
+
+function getEditForm(student: Student): EditStudentForm {
+  const status = STUDENT_STATUSES.find((item) => item === student.status);
+
+  return {
+    departmentId: student.departmentId,
+    number: student.number,
+    firstName: student.firstName,
+    lastName: student.lastName,
+    birth: student.birth?.slice(0, 10) ?? '',
+    status: status ?? 'enrolled',
+  };
+}
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -45,27 +78,54 @@ function getErrorMessage(error: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
+const inputClassName =
+  'w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
+
+const labelClassName = 'text-sm font-medium';
+
+const secondaryButtonClassName =
+  'rounded-lg border border-input px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60';
+
+const primaryButtonClassName =
+  'inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60';
+
+const errorClassName =
+  'rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive';
+
 export function StudentsPage() {
   const { token } = useAuth();
 
   const [students, setStudents] = useState<Student[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editForm, setEditForm] = useState<EditStudentForm | null>(null);
+
   const [loadError, setLoadError] = useState('');
   const [createError, setCreateError] = useState('');
+  const [editError, setEditError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
   const [retryCount, setRetryCount] = useState(0);
   const [form, setForm] = useState<StudentForm>(INITIAL_FORM);
+
+  const editingStudentId = editingStudent?.id;
 
   useEffect(() => {
     if (!token) {
       return;
     }
 
+    const accessToken: string = token;
     let cancelled = false;
 
     async function loadStudents() {
@@ -73,7 +133,7 @@ export function StudentsPage() {
       setLoadError('');
 
       try {
-        const result = await getStudents(token!);
+        const result = await getStudents(accessToken);
 
         if (!cancelled) {
           setStudents(result);
@@ -97,30 +157,42 @@ export function StudentsPage() {
   }, [token, retryCount]);
 
   useEffect(() => {
-    if (!token || !isFormOpen) {
+    if (!token || (!isFormOpen && !editingStudentId)) {
       return;
     }
 
+    const accessToken: string = token;
     let cancelled = false;
 
     async function loadDepartments() {
       setIsDepartmentsLoading(true);
-      setCreateError('');
+
+      if (editingStudentId) {
+        setEditError('');
+      } else {
+        setCreateError('');
+      }
 
       try {
-        const result = await getDepartments(token!);
+        const result = await getDepartments(accessToken);
 
         if (!cancelled) {
           setDepartments(result);
 
-          setForm((current) => ({
-            ...current,
-            departmentId: current.departmentId || result[0]?.id || '',
-          }));
+          if (isFormOpen) {
+            setForm((current) => ({
+              ...current,
+              departmentId: current.departmentId || result[0]?.id || '',
+            }));
+          }
         }
       } catch (error: unknown) {
         if (!cancelled) {
-          setCreateError(getErrorMessage(error));
+          if (editingStudentId) {
+            setEditError(getErrorMessage(error));
+          } else {
+            setCreateError(getErrorMessage(error));
+          }
         }
       } finally {
         if (!cancelled) {
@@ -134,7 +206,7 @@ export function StudentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, isFormOpen]);
+  }, [token, isFormOpen, editingStudentId]);
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -149,6 +221,8 @@ export function StudentsPage() {
         student.lastName,
         student.number,
         student.id,
+        student.departmentName,
+        student.status,
       ];
 
       return searchableValues.some((value) =>
@@ -170,14 +244,42 @@ export function StudentsPage() {
   }
 
   function toggleForm() {
-    setIsFormOpen((current) => !current);
+    if (isFormOpen) {
+      setIsFormOpen(false);
+      setForm(INITIAL_FORM);
+    } else {
+      cancelEditing();
+      setIsFormOpen(true);
+    }
+
     setCreateError('');
+    setEditError('');
+    setDeleteError('');
     setSuccessMessage('');
   }
 
   function resetForm() {
     setForm(INITIAL_FORM);
     setCreateError('');
+  }
+
+  function startEditing(student: Student) {
+    setIsFormOpen(false);
+    setForm(INITIAL_FORM);
+    setCreateError('');
+
+    setEditingStudent(student);
+    setEditForm(getEditForm(student));
+
+    setEditError('');
+    setDeleteError('');
+    setSuccessMessage('');
+  }
+
+  function cancelEditing() {
+    setEditingStudent(null);
+    setEditForm(null);
+    setEditError('');
   }
 
   async function handleCreateStudent(event: FormEvent<HTMLFormElement>) {
@@ -212,6 +314,81 @@ export function StudentsPage() {
     }
   }
 
+  async function handleUpdateStudent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token || !editingStudent || !editForm) {
+      setEditError('Your session has expired. Please sign in again.');
+      return;
+    }
+
+    setIsUpdating(true);
+    setEditError('');
+    setDeleteError('');
+    setSuccessMessage('');
+
+    try {
+      const updatedStudent = await updateStudent(token, editingStudent.id, {
+        departmentId: editForm.departmentId,
+        number: editForm.number.trim(),
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        birth: editForm.birth,
+        status: editForm.status,
+      });
+
+      setStudents((current) =>
+        current.map((student) =>
+          student.id === updatedStudent.id ? updatedStudent : student,
+        ),
+      );
+
+      setEditingStudent(null);
+      setEditForm(null);
+      setSuccessMessage('Student updated successfully.');
+    } catch (error: unknown) {
+      setEditError(getErrorMessage(error));
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleDeleteStudent(student: Student) {
+    if (!token || isDeletingId || isUpdating) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${student.firstName} ${student.lastName} (${student.number})?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingId(student.id);
+    setDeleteError('');
+    setSuccessMessage('');
+
+    try {
+      await deleteStudent(token, student.id);
+
+      setStudents((current) =>
+        current.filter((item) => item.id !== student.id),
+      );
+
+      if (editingStudent?.id === student.id) {
+        cancelEditing();
+      }
+
+      setSuccessMessage('Student deleted successfully.');
+    } catch (error: unknown) {
+      setDeleteError(getErrorMessage(error));
+    } finally {
+      setIsDeletingId(null);
+    }
+  }
+
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -225,7 +402,8 @@ export function StudentsPage() {
         <button
           type="button"
           onClick={toggleForm}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          disabled={isCreating || isUpdating || isDeletingId !== null}
+          className={primaryButtonClassName}
         >
           {isFormOpen ? (
             <X className="h-4 w-4" />
@@ -245,6 +423,12 @@ export function StudentsPage() {
         </div>
       )}
 
+      {deleteError && (
+        <div role="alert" className={errorClassName}>
+          {deleteError}
+        </div>
+      )}
+
       {isFormOpen && (
         <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-5">
@@ -255,10 +439,7 @@ export function StudentsPage() {
           </div>
 
           {createError && (
-            <div
-              role="alert"
-              className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-            >
+            <div role="alert" className={`mb-4 ${errorClassName}`}>
               {createError}
             </div>
           )}
@@ -266,7 +447,7 @@ export function StudentsPage() {
           <form onSubmit={handleCreateStudent} className="space-y-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="firstName" className="text-sm font-medium">
+                <label htmlFor="firstName" className={labelClassName}>
                   First name
                 </label>
                 <input
@@ -281,13 +462,13 @@ export function StudentsPage() {
                   onChange={(event) =>
                     updateForm('firstName', event.target.value)
                   }
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className={inputClassName}
                   placeholder="First name"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="lastName" className="text-sm font-medium">
+                <label htmlFor="lastName" className={labelClassName}>
                   Last name
                 </label>
                 <input
@@ -302,13 +483,13 @@ export function StudentsPage() {
                   onChange={(event) =>
                     updateForm('lastName', event.target.value)
                   }
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className={inputClassName}
                   placeholder="Last name"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
+                <label htmlFor="email" className={labelClassName}>
                   Email address
                 </label>
                 <input
@@ -320,13 +501,13 @@ export function StudentsPage() {
                   maxLength={255}
                   value={form.email}
                   onChange={(event) => updateForm('email', event.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className={inputClassName}
                   placeholder="student@example.com"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">
+                <label htmlFor="password" className={labelClassName}>
                   Temporary password
                 </label>
                 <input
@@ -341,13 +522,13 @@ export function StudentsPage() {
                   onChange={(event) =>
                     updateForm('password', event.target.value)
                   }
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className={inputClassName}
                   placeholder="At least 8 characters"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="number" className="text-sm font-medium">
+                <label htmlFor="number" className={labelClassName}>
                   Student number
                 </label>
                 <input
@@ -359,13 +540,13 @@ export function StudentsPage() {
                   maxLength={30}
                   value={form.number}
                   onChange={(event) => updateForm('number', event.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className={inputClassName}
                   placeholder="e.g. 2026001"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="departmentId" className="text-sm font-medium">
+                <label htmlFor="departmentId" className={labelClassName}>
                   Department
                 </label>
                 <select
@@ -377,7 +558,7 @@ export function StudentsPage() {
                     updateForm('departmentId', event.target.value)
                   }
                   disabled={isDepartmentsLoading || departments.length === 0}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`${inputClassName} disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   <option value="">
                     {isDepartmentsLoading
@@ -395,7 +576,7 @@ export function StudentsPage() {
               </div>
 
               <div className="space-y-2 sm:col-span-2">
-                <label htmlFor="birth" className="text-sm font-medium">
+                <label htmlFor="birth" className={labelClassName}>
                   Date of birth
                 </label>
                 <input
@@ -406,7 +587,7 @@ export function StudentsPage() {
                   max={TODAY}
                   value={form.birth}
                   onChange={(event) => updateForm('birth', event.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring sm:max-w-sm"
+                  className={`${inputClassName} sm:max-w-sm`}
                 />
               </div>
             </div>
@@ -414,12 +595,21 @@ export function StudentsPage() {
             <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
               <button
                 type="button"
+                onClick={resetForm}
+                disabled={isCreating}
+                className={secondaryButtonClassName}
+              >
+                Reset
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
-                  toggleForm();
+                  setIsFormOpen(false);
                   resetForm();
                 }}
                 disabled={isCreating}
-                className="rounded-lg border border-input px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                className={secondaryButtonClassName}
               >
                 Cancel
               </button>
@@ -429,9 +619,182 @@ export function StudentsPage() {
                 disabled={
                   isCreating || isDepartmentsLoading || departments.length === 0
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                className={primaryButtonClassName}
               >
                 {isCreating ? 'Creating student...' : 'Create student'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editingStudent && editForm && (
+        <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold">Edit student</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Update {editingStudent.firstName} {editingStudent.lastName}'s
+              profile.
+            </p>
+          </div>
+
+          {editError && (
+            <div role="alert" className={`mb-4 ${errorClassName}`}>
+              {editError}
+            </div>
+          )}
+
+          <form onSubmit={handleUpdateStudent} className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="edit-firstName" className={labelClassName}>
+                  First name
+                </label>
+                <input
+                  id="edit-firstName"
+                  required
+                  minLength={1}
+                  maxLength={100}
+                  value={editForm.firstName}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      firstName: event.target.value,
+                    })
+                  }
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="edit-lastName" className={labelClassName}>
+                  Last name
+                </label>
+                <input
+                  id="edit-lastName"
+                  required
+                  minLength={1}
+                  maxLength={100}
+                  value={editForm.lastName}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      lastName: event.target.value,
+                    })
+                  }
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="edit-number" className={labelClassName}>
+                  Student number
+                </label>
+                <input
+                  id="edit-number"
+                  required
+                  minLength={1}
+                  maxLength={30}
+                  value={editForm.number}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      number: event.target.value,
+                    })
+                  }
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="edit-department" className={labelClassName}>
+                  Department
+                </label>
+                <select
+                  id="edit-department"
+                  required
+                  value={editForm.departmentId}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      departmentId: event.target.value,
+                    })
+                  }
+                  disabled={isDepartmentsLoading || departments.length === 0}
+                  className={`${inputClassName} disabled:opacity-60`}
+                >
+                  <option value="">Select a department</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name} ({department.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="edit-birth" className={labelClassName}>
+                  Date of birth
+                </label>
+                <input
+                  id="edit-birth"
+                  type="date"
+                  required
+                  max={TODAY}
+                  value={editForm.birth}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      birth: event.target.value,
+                    })
+                  }
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="edit-status" className={labelClassName}>
+                  Status
+                </label>
+                <select
+                  id="edit-status"
+                  required
+                  value={editForm.status}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      status: event.target.value as EditStudentForm['status'],
+                    })
+                  }
+                  className={`${inputClassName} capitalize`}
+                >
+                  {STUDENT_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {status.replaceAll('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={cancelEditing}
+                disabled={isUpdating}
+                className={secondaryButtonClassName}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={
+                  isUpdating || isDepartmentsLoading || departments.length === 0
+                }
+                className={primaryButtonClassName}
+              >
+                {isUpdating ? 'Saving changes...' : 'Save changes'}
               </button>
             </div>
           </form>
@@ -443,8 +806,8 @@ export function StudentsPage() {
           <div>
             <h2 className="font-semibold">All students</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {students.length} student
-              {students.length === 1 ? '' : 's'} found
+              {filteredStudents.length} student
+              {filteredStudents.length === 1 ? '' : 's'} found
             </p>
           </div>
 
@@ -456,7 +819,7 @@ export function StudentsPage() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search students..."
               aria-label="Search students"
-              className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className={`${inputClassName} py-2.5 pl-9`}
             />
           </div>
         </div>
@@ -503,10 +866,13 @@ export function StudentsPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Student</th>
                   <th className="px-4 py-3 font-medium">Student number</th>
+                  <th className="px-4 py-3 font-medium">Department</th>
                   <th className="px-4 py-3 font-medium">Date of birth</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-border">
                 {filteredStudents.map((student) => (
                   <tr
@@ -518,12 +884,19 @@ export function StudentsPage() {
                         {student.firstName} {student.lastName}
                       </div>
                     </td>
+
                     <td className="px-4 py-4 text-muted-foreground">
                       {student.number}
                     </td>
+
                     <td className="px-4 py-4 text-muted-foreground">
-                      {student.birth ? String(student.birth).slice(0, 10) : '—'}
+                      {student.departmentName || '—'}
                     </td>
+
+                    <td className="px-4 py-4 text-muted-foreground">
+                      {student.birth ? student.birth.slice(0, 10) : '—'}
+                    </td>
+
                     <td className="px-4 py-4">
                       <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
                         {String(student.status ?? 'unknown').replaceAll(
@@ -531,6 +904,34 @@ export function StudentsPage() {
                           ' ',
                         )}
                       </span>
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startEditing(student)}
+                          disabled={isUpdating || isDeletingId !== null}
+                          aria-label={`Edit ${student.firstName} ${student.lastName}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-input px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteStudent(student)}
+                          disabled={isDeletingId !== null || isUpdating}
+                          aria-label={`Delete ${student.firstName} ${student.lastName}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {isDeletingId === student.id
+                            ? 'Deleting...'
+                            : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -147,3 +147,37 @@ export async function createStudent(
     body: input,
   });
 }
+
+export interface UpdateStudentInput {
+  departmentId?: string;
+  number?: string;
+  firstName?: string;
+  lastName?: string;
+  birth?: string;
+  status?:
+    | 'applicant'
+    | 'enrolled'
+    | 'on_leave'
+    | 'probation'
+    | 'graduated'
+    | 'withdrawn';
+}
+
+export async function updateStudent(
+  token: string,
+  id: string,
+  input: UpdateStudentInput,
+): Promise<Student> {
+  return apiRequest<Student>(`/students/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    token,
+    body: input,
+  });
+}
+
+export async function deleteStudent(token: string, id: string): Promise<void> {
+  return apiRequest<void>(`/students/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token,
+  });
+}
