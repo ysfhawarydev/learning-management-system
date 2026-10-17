@@ -13,6 +13,7 @@ import { instructors } from './instructors.js';
 import { relations, sql } from 'drizzle-orm';
 import { enrollments } from './enrollments.js';
 import { assessments } from './assessments.js';
+import { timetableSlots } from './timetable-slots.js';
 
 export const courseOfferings = pgTable(
   'course_offerings',
@@ -76,5 +77,6 @@ export const courseOfferingsRelations = relations(
 
     enrollments: many(enrollments),
     assessments: many(assessments),
+    timetableSlots: many(timetableSlots),
   }),
 );

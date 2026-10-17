@@ -11,3 +11,4 @@ export * from './schema/enrollments.js';
 export * from './schema/assessments.js';
 export * from './schema/grades.js';
 export * from './schema/attendance.js';
+export * from './schema/timetable-slots.js';
