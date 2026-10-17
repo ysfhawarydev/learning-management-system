@@ -6,6 +6,10 @@ import { AppService } from './app.service.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { StudentsModule } from './modules/students/students.module.js';
+import { DepartmentsModule } from './modules/departments/departments.module.js';
+import { CoursesModule } from './modules/courses/courses.module.js';
+import { InstructorsModule } from './modules/instructors/instructors.module.js';
+import { SemestersModule } from './modules/semesters/semesters.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -22,6 +26,10 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     DatabaseModule,
     AuthModule,
     StudentsModule,
+    DepartmentsModule,
+    CoursesModule,
+    InstructorsModule,
+    SemestersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
