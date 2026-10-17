@@ -15,6 +15,13 @@
       "when": 1792158162060,
       "tag": "0001_nifty_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792238757000,
+      "tag": "0002_regular_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

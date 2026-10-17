@@ -3,6 +3,7 @@ import { students } from './students.js';
 import { courseOfferings } from './course-offerings.js';
 import { relations } from 'drizzle-orm';
 import { grades } from './grades.js';
+import { attendance } from './attendance.js';
 
 export const enrollmentStatus = pgEnum('enrollment_status', [
   'enrolled',
@@ -56,4 +57,5 @@ export const enrollmentsRelations = relations(enrollments, ({ one, many }) => ({
   }),
 
   grades: many(grades),
+  attendance: many(attendance),
 }));
