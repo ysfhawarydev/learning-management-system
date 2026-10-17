@@ -1,0 +1,149 @@
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+).replace(/\/+$/, '');
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+type ApiRequestOptions = Omit<RequestInit, 'body'> & {
+  token?: string;
+  body?: unknown;
+};
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  const { token, body, headers, ...requestOptions } = options;
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...requestOptions,
+    headers: {
+      Accept: 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`;
+
+    try {
+      const payload: unknown = await response.json();
+
+      if (
+        typeof payload === 'object' &&
+        payload !== null &&
+        'message' in payload
+      ) {
+        const apiMessage = payload.message;
+
+        if (typeof apiMessage === 'string') {
+          message = apiMessage;
+        } else if (
+          Array.isArray(apiMessage) &&
+          apiMessage.every((item) => typeof item === 'string')
+        ) {
+          message = apiMessage.join(', ');
+        }
+      }
+    } catch {
+      // Use the fallback message for non-JSON responses.
+    }
+
+    throw new ApiError(message, response.status);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  roles: string[];
+}
+
+interface LoginResponse {
+  accessToken: string;
+  tokenType: 'Bearer';
+  user: AuthUser;
+}
+
+export async function loginRequest(
+  email: string,
+  password: string,
+): Promise<LoginResponse> {
+  return apiRequest<LoginResponse>('/auth/login', {
+    method: 'POST',
+    body: { email, password },
+  });
+}
+
+export interface Student {
+  id: string;
+  userId: string;
+  departmentId: string;
+  departmentName: string;
+  number: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  birth: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getStudents(token: string): Promise<Student[]> {
+  return apiRequest<Student[]>('/students', {
+    method: 'GET',
+    token,
+  });
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface CreateStudentInput {
+  email: string;
+  password: string;
+  departmentId: string;
+  number: string;
+  firstName: string;
+  lastName: string;
+  birth: string;
+}
+
+export async function getDepartments(token: string): Promise<Department[]> {
+  return apiRequest<Department[]>('/students/departments', {
+    method: 'GET',
+    token,
+  });
+}
+
+export async function createStudent(
+  token: string,
+  input: CreateStudentInput,
+): Promise<Student> {
+  return apiRequest<Student>('/students/with-account', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}

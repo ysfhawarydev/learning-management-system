@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { and, eq, isNull } from 'drizzle-orm';
+import * as argon2 from 'argon2';
 import { DatabaseService } from '../../database/database.service.js';
 import {
   departments,
@@ -15,6 +16,28 @@ import {
 } from '../../database/schema.js';
 import type { CreateStudentDto } from './dto/create-student.dto.js';
 import type { UpdateStudentDto } from './dto/update-student.dto.js';
+import { CreateStudentAccountDto } from './dto/create-student-account.dto.js';
+
+function getPostgresErrorCode(error: unknown): string | undefined {
+  const visited = new Set<object>();
+  let current: unknown = error;
+
+  while (typeof current === 'object' && current !== null) {
+    if (visited.has(current)) {
+      break;
+    }
+
+    visited.add(current);
+
+    if ('code' in current && typeof current.code === 'string') {
+      return current.code;
+    }
+
+    current = 'cause' in current ? current.cause : undefined;
+  }
+
+  return undefined;
+}
 
 @Injectable()
 export class StudentsService {
@@ -108,14 +131,88 @@ export class StudentsService {
         return student;
       });
     } catch (error: unknown) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === '23505'
-      ) {
+      if (getPostgresErrorCode(error) === '23505') {
         throw new ConflictException(
           'A student with this user or student number already exists',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  async findDepartments() {
+    return this.database.db
+      .select({
+        id: departments.id,
+        name: departments.name,
+        code: departments.code,
+      })
+      .from(departments);
+  }
+
+  async createAccount(dto: CreateStudentAccountDto) {
+    const email = dto.email.trim().toLowerCase();
+    const passwordHash = await argon2.hash(dto.password);
+
+    try {
+      const studentId = await this.database.db.transaction(async (tx) => {
+        const [department] = await tx
+          .select({ id: departments.id })
+          .from(departments)
+          .where(eq(departments.id, dto.departmentId))
+          .limit(1);
+
+        if (!department) {
+          throw new NotFoundException('Department not found');
+        }
+
+        const [studentRole] = await tx
+          .select({ id: roles.id })
+          .from(roles)
+          .where(eq(roles.name, 'student'))
+          .limit(1);
+
+        if (!studentRole) {
+          throw new NotFoundException(
+            'Student role not found. Seed the roles table first.',
+          );
+        }
+
+        const [user] = await tx
+          .insert(users)
+          .values({
+            email,
+            passwordHash,
+            status: 'active',
+          })
+          .returning({ id: users.id });
+
+        await tx.insert(userRoles).values({
+          userId: user.id,
+          roleId: studentRole.id,
+        });
+
+        const [student] = await tx
+          .insert(students)
+          .values({
+            userId: user.id,
+            departmentId: dto.departmentId,
+            number: dto.number.trim(),
+            firstName: dto.firstName.trim(),
+            lastName: dto.lastName.trim(),
+            birth: dto.birth,
+          })
+          .returning({ id: students.id });
+
+        return student.id;
+      });
+
+      return this.findOne(studentId);
+    } catch (error: unknown) {
+      if (getPostgresErrorCode(error) === '23505') {
+        throw new ConflictException(
+          'The email or student number is already in use.',
         );
       }
 
@@ -283,12 +380,7 @@ export class StudentsService {
 
       return this.findOne(id);
     } catch (error: unknown) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === '23505'
-      ) {
+      if (getPostgresErrorCode(error) === '23505') {
         throw new ConflictException(
           'A student with this student number already exists',
         );

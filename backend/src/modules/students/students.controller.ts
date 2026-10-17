@@ -11,11 +11,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
+
 import { CreateStudentDto } from './dto/create-student.dto.js';
+import { CreateStudentAccountDto } from './dto/create-student-account.dto.js';
 import { UpdateStudentDto } from './dto/update-student.dto.js';
 import { StudentsService } from './students.service.js';
 
@@ -23,6 +26,30 @@ import { StudentsService } from './students.service.js';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
+
+  @Get('me')
+  @Roles('student')
+  getMyProfile(@Req() request: Request & { user: AuthenticatedUser }) {
+    return this.studentsService.findMyProfile(request.user.sub);
+  }
+
+  @Get('departments')
+  @Roles('admin')
+  findDepartments() {
+    return this.studentsService.findDepartments();
+  }
+
+  @Get()
+  @Roles('admin')
+  findAll() {
+    return this.studentsService.findAll();
+  }
+
+  @Post('with-account')
+  @Roles('admin')
+  createAccount(@Body() dto: CreateStudentAccountDto) {
+    return this.studentsService.createAccount(dto);
+  }
 
   @Post()
   @Roles('admin')
@@ -39,27 +66,15 @@ export class StudentsController {
     return this.studentsService.update(id, dto);
   }
 
-  @Get('me')
-  @Roles('student')
-  getMyProfile(@Req() request: Request & { user: AuthenticatedUser }) {
-    return this.studentsService.findMyProfile(request.user.sub);
-  }
-
-  @Get()
-  @Roles('admin')
-  findAll() {
-    return this.studentsService.findAll();
-  }
-
   @Get(':id')
   @Roles('admin')
-  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.studentsService.findOne(id);
   }
 
   @Delete(':id')
   @Roles('admin')
-  remove(@Param('id', new ParseUUIDPipe()) id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.studentsService.remove(id);
   }
 }
