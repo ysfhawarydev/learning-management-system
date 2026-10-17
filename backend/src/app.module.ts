@@ -11,6 +11,7 @@ import { CoursesModule } from './modules/courses/courses.module.js';
 import { InstructorsModule } from './modules/instructors/instructors.module.js';
 import { SemestersModule } from './modules/semesters/semesters.module.js';
 import { CourseOfferingsModule } from './modules/course-offerings/course-offerings.module.js';
+import { EnrollmentsModule } from './modules/enrollments/enrollments.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -32,6 +33,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     InstructorsModule,
     SemestersModule,
     CourseOfferingsModule,
+    EnrollmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
