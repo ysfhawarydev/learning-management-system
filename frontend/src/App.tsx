@@ -18,6 +18,7 @@ import { ApiError, getStudents } from '@/lib/api';
 import type { Student } from '@/lib/api';
 import { PendingRegistrationsPanel } from '@/components/pending-registrations-panel';
 import { DepartmentsPage } from './components/departments-page';
+import { CoursesPage } from '@/components/courses-page';
 
 const statistics = [
   {
@@ -407,6 +408,8 @@ function App() {
         <StudentsPage />
       ) : activePage === 'Departments' ? (
         <DepartmentsPage />
+      ) : activePage === 'Courses' ? (
+        <CoursesPage />
       ) : (
         <PlaceholderPage page={activePage} />
       )}
