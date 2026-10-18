@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  BookOpenCheck,
   Building2,
   CalendarDays,
   CalendarRange,
@@ -13,6 +14,7 @@ export type PageId =
   | 'Students'
   | 'Departments'
   | 'Courses'
+  | 'Course Offerings'
   | 'Semesters'
   | 'Attendance'
   | 'Settings';
@@ -30,6 +32,7 @@ const navigation = [
   { label: 'Students', icon: GraduationCap },
   { label: 'Departments', icon: Building2 },
   { label: 'Courses', icon: BookOpen },
+  { label: 'Course Offerings', icon: BookOpenCheck },
   { label: 'Semesters', icon: CalendarRange },
   { label: 'Attendance', icon: CalendarDays },
 ] as const;

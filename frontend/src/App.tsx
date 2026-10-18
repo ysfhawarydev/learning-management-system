@@ -20,6 +20,7 @@ import { PendingRegistrationsPanel } from '@/components/pending-registrations-pa
 import { DepartmentsPage } from './components/departments-page';
 import { CoursesPage } from '@/components/courses-page';
 import { SemestersPage } from './components/semesters-page';
+import { CourseOfferingsPage } from '@/components/course-offerings-page';
 
 const statistics = [
   {
@@ -411,6 +412,8 @@ function App() {
         <DepartmentsPage />
       ) : activePage === 'Courses' ? (
         <CoursesPage />
+      ) : activePage === 'Course Offerings' ? (
+        <CourseOfferingsPage />
       ) : activePage === 'Semesters' ? (
         <SemestersPage />
       ) : (

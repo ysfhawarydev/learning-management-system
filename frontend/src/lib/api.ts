@@ -424,3 +424,87 @@ export function deleteSemester(token: string, id: string) {
     },
   );
 }
+
+export interface InstructorRecord {
+  id: string;
+  userId: string;
+  departmentId: string;
+  departmentName: string;
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CourseOfferingRecord {
+  id: string;
+  courseId: string;
+  semesterId: string;
+  instructorId: string;
+  sectionCode: string;
+  capacity: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCourseOfferingInput {
+  courseId: string;
+  semesterId: string;
+  instructorId: string;
+  sectionCode: string;
+  capacity?: number;
+}
+
+export type UpdateCourseOfferingInput = Partial<CreateCourseOfferingInput>;
+
+export function getInstructors(token: string) {
+  return apiRequest<InstructorRecord[]>('/instructors', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function getCourseOfferings(token: string) {
+  return apiRequest<CourseOfferingRecord[]>('/course-offerings', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function createCourseOffering(
+  token: string,
+  input: CreateCourseOfferingInput,
+) {
+  return apiRequest<CourseOfferingRecord>('/course-offerings', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateCourseOffering(
+  token: string,
+  id: string,
+  input: UpdateCourseOfferingInput,
+) {
+  return apiRequest<CourseOfferingRecord>(
+    `/course-offerings/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function deleteCourseOffering(token: string, id: string) {
+  return apiRequest<{ id: string }>(
+    `/course-offerings/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  );
+}
