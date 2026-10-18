@@ -19,6 +19,7 @@ import type { Student } from '@/lib/api';
 import { PendingRegistrationsPanel } from '@/components/pending-registrations-panel';
 import { DepartmentsPage } from './components/departments-page';
 import { CoursesPage } from '@/components/courses-page';
+import { SemestersPage } from './components/semesters-page';
 
 const statistics = [
   {
@@ -410,6 +411,8 @@ function App() {
         <DepartmentsPage />
       ) : activePage === 'Courses' ? (
         <CoursesPage />
+      ) : activePage === 'Semesters' ? (
+        <SemestersPage />
       ) : (
         <PlaceholderPage page={activePage} />
       )}

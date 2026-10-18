@@ -362,3 +362,65 @@ export function deleteCourse(token: string, id: string) {
     token,
   });
 }
+
+export type SemesterTerm = 'spring' | 'summer' | 'fall' | 'winter';
+
+export type SemesterStatus = 'planned' | 'active' | 'completed' | 'cancelled';
+
+export interface SemesterRecord {
+  id: string;
+  academicYear: string;
+  term: SemesterTerm;
+  status: SemesterStatus;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSemesterInput {
+  academicYear: string;
+  term: SemesterTerm;
+  status?: SemesterStatus;
+  startDate: string;
+  endDate: string;
+}
+
+export type UpdateSemesterInput = Partial<CreateSemesterInput>;
+
+export function getSemesters(token: string) {
+  return apiRequest<SemesterRecord[]>('/semesters', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function createSemester(token: string, input: CreateSemesterInput) {
+  return apiRequest<SemesterRecord>('/semesters', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateSemester(
+  token: string,
+  id: string,
+  input: UpdateSemesterInput,
+) {
+  return apiRequest<SemesterRecord>(`/semesters/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    token,
+    body: input,
+  });
+}
+
+export function deleteSemester(token: string, id: string) {
+  return apiRequest<{ message: string }>(
+    `/semesters/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  );
+}
