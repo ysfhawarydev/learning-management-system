@@ -15,6 +15,9 @@ import {
 } from '../../database/schema.js';
 import type { CreateInstructorDto } from './dto/create-instructor.dto.js';
 import type { UpdateInstructorDto } from './dto/update-instructor.dto.js';
+import { InternalServerErrorException } from '@nestjs/common';
+import * as argon2 from 'argon2';
+import type { CreateInstructorAccountDto } from './dto/create-instructor-account.dto.js';
 
 function getPostgresErrorCode(error: unknown): string | undefined {
   const visited = new Set<object>();
@@ -148,6 +151,115 @@ export class InstructorsService {
       if (code === '23503') {
         throw new BadRequestException(
           'The specified user or department does not exist',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  async createAccount(dto: CreateInstructorAccountDto) {
+    const email = dto.email.trim().toLowerCase();
+    const employeeNumber = dto.employeeNumber.trim();
+    const firstName = dto.firstName.trim();
+    const lastName = dto.lastName.trim();
+    const phone = dto.phone?.trim() || null;
+
+    if (!employeeNumber || !firstName || !lastName) {
+      throw new BadRequestException(
+        'Employee number and names cannot be empty',
+      );
+    }
+
+    const passwordHash = await argon2.hash(dto.password);
+
+    try {
+      const instructorId = await this.database.db.transaction(async (tx) => {
+        const [department] = await tx
+          .select({ id: departments.id })
+          .from(departments)
+          .where(eq(departments.id, dto.departmentId))
+          .limit(1);
+
+        if (!department) {
+          throw new NotFoundException('Department not found');
+        }
+
+        const [instructorRole] = await tx
+          .select({ id: roles.id })
+          .from(roles)
+          .where(eq(roles.name, 'instructor'))
+          .limit(1);
+
+        if (!instructorRole) {
+          throw new NotFoundException(
+            'Instructor role not found. Seed the roles table first.',
+          );
+        }
+
+        const [createdUser] = await tx
+          .insert(users)
+          .values({
+            email,
+            passwordHash,
+            status: 'active',
+          })
+          .returning({ id: users.id });
+
+        if (!createdUser) {
+          throw new InternalServerErrorException(
+            'Failed to create instructor account',
+          );
+        }
+
+        await tx.insert(userRoles).values({
+          userId: createdUser.id,
+          roleId: instructorRole.id,
+        });
+
+        const [instructor] = await tx
+          .insert(instructors)
+          .values({
+            userId: createdUser.id,
+            departmentId: dto.departmentId,
+            employeeNumber,
+            firstName,
+            lastName,
+            phone,
+          })
+          .returning({ id: instructors.id });
+
+        if (!instructor) {
+          throw new InternalServerErrorException(
+            'Failed to create instructor profile',
+          );
+        }
+
+        return instructor.id;
+      });
+
+      return this.findOne(instructorId);
+    } catch (error: unknown) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException ||
+        error instanceof ConflictException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
+      }
+
+      const code = getPostgresErrorCode(error);
+
+      if (code === '23505') {
+        throw new ConflictException(
+          'The email or employee number is already in use',
+        );
+      }
+
+      if (code === '23503') {
+        throw new BadRequestException(
+          'The specified department or related record does not exist',
         );
       }
 

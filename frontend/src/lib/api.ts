@@ -92,6 +92,13 @@ export async function loginRequest(
   });
 }
 
+export function getCurrentUser(token: string): Promise<AuthUser> {
+  return apiRequest<AuthUser>('/auth/me', {
+    method: 'GET',
+    token,
+  });
+}
+
 export interface RegisterInput {
   email: string;
   password: string;
@@ -464,6 +471,60 @@ export function getInstructors(token: string) {
     method: 'GET',
     token,
   });
+}
+
+export interface CreateInstructorAccountInput {
+  email: string;
+  password: string;
+  departmentId: string;
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+export interface UpdateInstructorInput {
+  departmentId?: string;
+  employeeNumber?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+}
+
+export function createInstructorAccount(
+  token: string,
+  input: CreateInstructorAccountInput,
+) {
+  return apiRequest<InstructorRecord>('/instructors/accounts', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateInstructor(
+  token: string,
+  id: string,
+  input: UpdateInstructorInput,
+) {
+  return apiRequest<InstructorRecord>(
+    `/instructors/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function deleteInstructor(token: string, id: string) {
+  return apiRequest<{ message: string }>(
+    `/instructors/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  );
 }
 
 export function getCourseOfferings(token: string) {

@@ -249,6 +249,41 @@ describe('Instructors (e2e)', () => {
     return response;
   }
 
+  async function createInstructorAccount(
+    token: string,
+    departmentId: string,
+    overrides: {
+      email?: string;
+      password?: string;
+      employeeNumber?: string;
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      departmentId?: string;
+    } = {},
+  ) {
+    const email = overrides.email ?? `instructor-${randomUUID()}@example.com`;
+    createdEmails.push(email);
+
+    const response = await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        email,
+        password,
+        departmentId,
+        employeeNumber: `EMP${randomUUID().replaceAll('-', '').slice(0, 10)}`,
+        firstName: 'John',
+        lastName: 'Doe',
+        ...overrides,
+      })
+      .expect(201);
+
+    createdInstructorIds.push(response.body.id);
+
+    return { email, response };
+  }
+
   it('rejects unauthenticated instructor requests', async () => {
     await request(app.getHttpServer()).get('/instructors').expect(401);
 
@@ -689,5 +724,200 @@ describe('Instructors (e2e)', () => {
     expect(response.body.message).toBe(
       'Cannot delete an instructor who has course offerings',
     );
+  });
+
+  it('allows an admin to create an instructor account and profile', async () => {
+    const admin = await createAccount('admin');
+    const department = await createDepartment(admin.token);
+
+    const { email, response } = await createInstructorAccount(
+      admin.token,
+      department.body.id,
+      {
+        email: `new-instructor-${randomUUID()}@example.com`,
+        employeeNumber: 'NEWEMP1001',
+        firstName: 'Alice',
+        lastName: 'Johnson',
+        phone: '123456789',
+      },
+    );
+
+    expect(response.body).toMatchObject({
+      departmentId: department.body.id,
+      departmentName: 'E2E Instructor Department',
+      employeeNumber: 'NEWEMP1001',
+      firstName: 'Alice',
+      lastName: 'Johnson',
+      phone: '123456789',
+    });
+
+    expect(response.body.id).toEqual(expect.any(String));
+    expect(response.body.userId).toEqual(expect.any(String));
+    expect(response.body).not.toHaveProperty('password');
+    expect(response.body).not.toHaveProperty('passwordHash');
+
+    const [user] = await database.db
+      .select({
+        id: users.id,
+        status: users.status,
+      })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    expect(user).toBeDefined();
+    expect(user?.id).toBe(response.body.userId);
+    expect(user?.status).toBe('active');
+
+    const [instructorRole] = await database.db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.name, 'instructor'))
+      .limit(1);
+
+    expect(instructorRole).toBeDefined();
+
+    const assignments = await database.db
+      .select({ roleId: userRoles.roleId })
+      .from(userRoles)
+      .where(eq(userRoles.userId, response.body.userId));
+
+    expect(assignments).toContainEqual({
+      roleId: instructorRole?.id,
+    });
+  });
+
+  it('rejects unauthenticated instructor account creation', async () => {
+    await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .send({})
+      .expect(401);
+  });
+
+  it('forbids students from creating instructor accounts', async () => {
+    const student = await createAccount('student');
+    const department = await createDepartment(
+      (await createAccount('admin')).token,
+    );
+
+    await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .set('Authorization', `Bearer ${student.token}`)
+      .send({
+        email: `forbidden-${randomUUID()}@example.com`,
+        password,
+        departmentId: department.body.id,
+        employeeNumber: 'FORBIDDEN01',
+        firstName: 'Forbidden',
+        lastName: 'User',
+      })
+      .expect(403);
+  });
+
+  it('rejects duplicate instructor account emails', async () => {
+    const admin = await createAccount('admin');
+    const department = await createDepartment(admin.token);
+    const email = `duplicate-${randomUUID()}@example.com`;
+
+    await createInstructorAccount(admin.token, department.body.id, {
+      email,
+      employeeNumber: 'DUPLICATE01',
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        email,
+        password,
+        departmentId: department.body.id,
+        employeeNumber: 'DUPLICATE02',
+        firstName: 'Second',
+        lastName: 'Instructor',
+      })
+      .expect(409);
+
+    expect(response.body.message).toBe(
+      'The email or employee number is already in use',
+    );
+  });
+
+  it('rejects duplicate instructor employee numbers', async () => {
+    const admin = await createAccount('admin');
+    const department = await createDepartment(admin.token);
+    const employeeNumber = `DUP${randomUUID().replaceAll('-', '').slice(0, 8)}`;
+
+    await createInstructorAccount(admin.token, department.body.id, {
+      employeeNumber,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        email: `another-${randomUUID()}@example.com`,
+        password,
+        departmentId: department.body.id,
+        employeeNumber,
+        firstName: 'Second',
+        lastName: 'Instructor',
+      })
+      .expect(409);
+
+    expect(response.body.message).toBe(
+      'The email or employee number is already in use',
+    );
+  });
+
+  it('rejects invalid instructor account payloads', async () => {
+    const admin = await createAccount('admin');
+    const department = await createDepartment(admin.token);
+    const authorization = `Bearer ${admin.token}`;
+
+    await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .set('Authorization', authorization)
+      .send({
+        email: 'not-an-email',
+        password: 'short',
+        departmentId: department.body.id,
+        employeeNumber: '',
+        firstName: '',
+        lastName: 'Doe',
+      })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .set('Authorization', authorization)
+      .send({
+        email: `unexpected-${randomUUID()}@example.com`,
+        password,
+        departmentId: department.body.id,
+        employeeNumber: 'VALIDEMP01',
+        firstName: 'John',
+        lastName: 'Doe',
+        unexpectedField: true,
+      })
+      .expect(400);
+  });
+
+  it('rejects a nonexistent department when creating an instructor account', async () => {
+    const admin = await createAccount('admin');
+
+    const response = await request(app.getHttpServer())
+      .post('/instructors/accounts')
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        email: `missing-department-${randomUUID()}@example.com`,
+        password,
+        departmentId: randomUUID(),
+        employeeNumber: 'NODEPT1001',
+        firstName: 'John',
+        lastName: 'Doe',
+      })
+      .expect(404);
+
+    expect(response.body.message).toBe('Department not found');
   });
 });

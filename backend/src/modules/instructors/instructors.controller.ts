@@ -15,12 +15,18 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CreateInstructorDto } from './dto/create-instructor.dto.js';
 import { UpdateInstructorDto } from './dto/update-instructor.dto.js';
 import { InstructorsService } from './instructors.service.js';
+import { CreateInstructorAccountDto } from './dto/create-instructor-account.dto.js';
 
 @Controller('instructors')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class InstructorsController {
   constructor(private readonly instructorsService: InstructorsService) {}
+
+  @Post('accounts')
+  createAccount(@Body() dto: CreateInstructorAccountDto) {
+    return this.instructorsService.createAccount(dto);
+  }
 
   @Post()
   create(@Body() createInstructorDto: CreateInstructorDto) {

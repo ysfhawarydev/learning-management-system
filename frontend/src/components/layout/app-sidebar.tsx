@@ -7,6 +7,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   Settings,
+  UsersRound,
 } from 'lucide-react';
 
 export type PageId =
@@ -17,7 +18,8 @@ export type PageId =
   | 'Course Offerings'
   | 'Semesters'
   | 'Attendance'
-  | 'Settings';
+  | 'Settings'
+  | 'Instructors';
 
 interface AppSidebarProps {
   activePage: PageId;
@@ -30,6 +32,7 @@ interface AppSidebarProps {
 const navigation = [
   { label: 'Overview', icon: LayoutDashboard },
   { label: 'Students', icon: GraduationCap },
+  { label: 'Instructors', icon: UsersRound },
   { label: 'Departments', icon: Building2 },
   { label: 'Courses', icon: BookOpen },
   { label: 'Course Offerings', icon: BookOpenCheck },

@@ -69,7 +69,7 @@ export function LoginPage({ onRegister }: LoginPageProps) {
           <div className="mb-6">
             <h2 className="text-lg font-semibold">Welcome back</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Enter your administrator credentials to continue.
+              Enter your account credentials to continue.
             </p>
           </div>
 
