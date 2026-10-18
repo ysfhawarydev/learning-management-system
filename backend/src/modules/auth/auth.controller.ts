@@ -59,4 +59,9 @@ export class AuthController {
   adminArea() {
     return { message: 'Welcome to the admin area' };
   }
+
+  @Get('departments')
+  getRegistrationDepartments() {
+    return this.authService.getRegistrationDepartments();
+  }
 }

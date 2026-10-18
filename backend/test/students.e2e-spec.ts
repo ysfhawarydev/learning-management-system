@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import * as argon2 from 'argon2';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
@@ -107,26 +108,6 @@ describe('Students (e2e)', () => {
     const email = `students-${randomUUID()}@example.com`;
     createdEmails.push(email);
 
-    await request(app.getHttpServer())
-      .post('/auth/register')
-      .send({ email, password })
-      .expect(201);
-
-    const [user] = await database.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-
-    if (!user) {
-      throw new Error(`Test user "${email}" was not found`);
-    }
-
-    await database.db
-      .update(users)
-      .set({ status: 'active' })
-      .where(eq(users.id, user.id));
-
     const [role] = await database.db
       .select({ id: roles.id })
       .from(roles)
@@ -137,10 +118,25 @@ describe('Students (e2e)', () => {
       throw new Error(`Required role "${roleName}" was not found`);
     }
 
-    await database.db
-      .insert(userRoles)
-      .values({ userId: user.id, roleId: role.id })
-      .onConflictDoNothing();
+    const passwordHash = await argon2.hash(password);
+
+    const [user] = await database.db
+      .insert(users)
+      .values({
+        email,
+        passwordHash,
+        status: 'active',
+      })
+      .returning({ id: users.id });
+
+    if (!user) {
+      throw new Error(`Failed to create test user "${email}"`);
+    }
+
+    await database.db.insert(userRoles).values({
+      userId: user.id,
+      roleId: role.id,
+    });
 
     const loginResponse = await request(app.getHttpServer())
       .post('/auth/login')
@@ -460,7 +456,6 @@ describe('Students (e2e)', () => {
       .expect(200);
 
     expect(deletion.body.message).toBe('Student soft-deleted successfully');
-
     expect(deletion.body.student.deletedAt).toBeTruthy();
 
     await request(app.getHttpServer())

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import argon2 from 'argon2';
+
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
@@ -122,6 +124,21 @@ describe('Assessments (e2e)', () => {
         await database.db.delete(departments).where(eq(departments.id, id));
       }
 
+      // Remove registered student profiles before deleting users.
+      for (const email of createdEmails) {
+        const [user] = await database.db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+
+        if (user) {
+          await database.db
+            .delete(students)
+            .where(eq(students.userId, user.id));
+        }
+      }
+
       for (const email of createdEmails) {
         const [user] = await database.db
           .select({ id: users.id })
@@ -146,9 +163,26 @@ describe('Assessments (e2e)', () => {
     const email = `assessments-${randomUUID()}@example.com`;
     createdEmails.push(email);
 
+    const [department] = await database.db
+      .insert(departments)
+      .values({
+        code: `E2E-${randomUUID().slice(0, 8)}`,
+        name: 'E2E Registration Department',
+      })
+      .returning({ id: departments.id });
+    if (!department) throw new Error('Failed to create E2E department');
+
     await request(app.getHttpServer())
       .post('/auth/register')
-      .send({ email, password })
+      .send({
+        email,
+        password,
+        firstName: 'Test',
+        lastName: 'Student',
+        departmentId: department.id,
+        number: `E2E-${randomUUID().slice(0, 8)}`,
+        birth: '2005-05-15',
+      })
       .expect(201);
 
     const [user] = await database.db
@@ -176,6 +210,41 @@ describe('Assessments (e2e)', () => {
       .insert(userRoles)
       .values({ userId: user.id, roleId: role.id })
       .onConflictDoNothing();
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    return {
+      id: user.id,
+      token: response.body.accessToken as string,
+    };
+  }
+
+  async function createUnregisteredAccount(roleName: 'student' | 'admin') {
+    const email = `e2e-${randomUUID()}@example.com`;
+    createdEmails.push(email);
+
+    const passwordHash = await argon2.hash(password);
+    const [user] = await database.db
+      .insert(users)
+      .values({ email, passwordHash, status: 'active' })
+      .returning({ id: users.id });
+
+    if (!user) throw new Error('Failed to create E2E user');
+
+    const [role] = await database.db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.name, roleName))
+      .limit(1);
+
+    if (!role) throw new Error(`Required role "${roleName}" was not found`);
+
+    await database.db
+      .insert(userRoles)
+      .values({ userId: user.id, roleId: role.id });
 
     const response = await request(app.getHttpServer())
       .post('/auth/login')
@@ -294,7 +363,7 @@ describe('Assessments (e2e)', () => {
     adminToken: string,
     departmentId: string,
   ) {
-    const account = await createAccount('student');
+    const account = await createUnregisteredAccount('student');
 
     const response = await request(app.getHttpServer())
       .post('/students')

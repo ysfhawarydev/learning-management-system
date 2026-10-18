@@ -1,12 +1,22 @@
-import { ArrowUpRight, BookOpen, CalendarCheck, Users } from 'lucide-react';
+import {
+  ArrowUpRight,
+  BookOpen,
+  CalendarCheck,
+  GraduationCap,
+  LogOut,
+  Users,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
+
 import { AppLayout } from '@/components/layout/app-layout';
 import type { PageId } from '@/components/layout/app-sidebar';
 import { LoginPage } from '@/components/login-page';
+import { RegisterPage } from '@/components/register-page';
 import { StudentsPage } from '@/components/students-page';
 import { useAuth } from '@/hooks/use-auth';
 import { ApiError, getStudents } from '@/lib/api';
 import type { Student } from '@/lib/api';
+import { PendingRegistrationsPanel } from '@/components/pending-registrations-panel';
 
 const statistics = [
   {
@@ -90,9 +100,11 @@ function Overview() {
       <section className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="text-sm font-medium text-primary">Workspace overview</p>
+
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
             Welcome back
           </h1>
+
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
             Manage student records and keep academic information organized from
             one place.
@@ -109,6 +121,7 @@ function Overview() {
                   : 'bg-emerald-500'
             }`}
           />
+
           {displayError
             ? 'API connection issue'
             : isLoading
@@ -130,6 +143,7 @@ function Overview() {
               <p className="text-sm font-medium text-muted-foreground">
                 {label}
               </p>
+
               <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon size={19} aria-hidden="true" />
               </span>
@@ -234,7 +248,8 @@ function Overview() {
 
         <article className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-semibold tracking-tight">Next steps</h2>
+            <h2 className="font-semibold tracking-tight">Quick guide</h2>
+
             <ArrowUpRight
               size={19}
               className="text-muted-foreground"
@@ -243,20 +258,37 @@ function Overview() {
           </div>
 
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            The application shell is ready for the next stage of development.
+            Manage student records from one place using the Students section.
           </p>
 
           <div className="mt-6 space-y-4">
             {[
-              'Build the student management page',
-              'Add forms and validation',
-              'Connect courses and attendance APIs',
+              {
+                title: 'View student records',
+                description: 'Browse and search existing students.',
+              },
+              {
+                title: 'Add student accounts',
+                description: 'Create student profiles with login credentials.',
+              },
+              {
+                title: 'Keep records up to date',
+                description:
+                  'Edit student details or remove records when needed.',
+              },
             ].map((item, index) => (
-              <div key={item} className="flex items-start gap-3">
+              <div key={item.title} className="flex items-start gap-3">
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                   {index + 1}
                 </span>
-                <p className="pt-0.5 text-sm">{item}</p>
+
+                <div>
+                  <p className="text-sm font-medium">{item.title}</p>
+
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -270,6 +302,7 @@ function PlaceholderPage({ page }: { page: PageId }) {
   return (
     <section className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
       <h1 className="text-xl font-semibold">{page}</h1>
+
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
         This page is part of the application navigation. We will implement it in
         a dedicated step.
@@ -278,12 +311,90 @@ function PlaceholderPage({ page }: { page: PageId }) {
   );
 }
 
+function StudentDashboard() {
+  const { user, logout } = useAuth();
+
+  return (
+    <main className="min-h-svh bg-background px-4 py-10 text-foreground sm:px-8">
+      <div className="mx-auto max-w-4xl">
+        <header className="flex items-center justify-between gap-4 border-b border-border pb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <GraduationCap size={24} aria-hidden="true" />
+            </div>
+
+            <div>
+              <h1 className="font-semibold tracking-tight">Student Portal</h1>
+              <p className="text-sm text-muted-foreground">
+                Student Management System
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-accent"
+          >
+            <LogOut size={16} aria-hidden="true" />
+            Sign out
+          </button>
+        </header>
+
+        <section className="py-10">
+          <p className="text-sm font-medium text-primary">Student workspace</p>
+
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+            Welcome back!
+          </h2>
+
+          <p className="mt-3 text-muted-foreground">
+            You are signed in to your student account.
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h3 className="font-semibold">Your account</h3>
+
+          <div className="mt-5 space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Email address</p>
+              <p className="mt-1 break-all text-sm font-medium">
+                {user?.email}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground">Account role</p>
+              <p className="mt-1 text-sm font-medium">Student</p>
+            </div>
+          </div>
+        </section>
+
+        <p className="mt-6 text-sm text-muted-foreground">
+          Your academic information and courses will be available here as those
+          student features are implemented.
+        </p>
+      </div>
+    </main>
+  );
+}
+
 function App() {
   const [activePage, setActivePage] = useState<PageId>('Overview');
-  const { isAuthenticated } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
+  const { isAuthenticated, user } = useAuth();
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return showRegister ? (
+      <RegisterPage onBackToLogin={() => setShowRegister(false)} />
+    ) : (
+      <LoginPage onRegister={() => setShowRegister(true)} />
+    );
+  }
+
+  if (user?.roles.includes('student') && !user.roles.includes('admin')) {
+    return <StudentDashboard />;
   }
 
   return (
@@ -291,7 +402,10 @@ function App() {
       {activePage === 'Overview' ? (
         <Overview />
       ) : activePage === 'Students' ? (
-        <StudentsPage />
+        <>
+          <PendingRegistrationsPanel />
+          <StudentsPage />
+        </>
       ) : (
         <PlaceholderPage page={activePage} />
       )}

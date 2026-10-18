@@ -11,7 +11,11 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { ApiError } from '@/lib/api';
 
-export function LoginPage() {
+interface LoginPageProps {
+  onRegister: () => void;
+}
+
+export function LoginPage({ onRegister }: LoginPageProps) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,11 +55,13 @@ export function LoginPage() {
           <div className="flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <GraduationCap size={29} aria-hidden="true" />
           </div>
+
           <h1 className="mt-5 text-2xl font-semibold tracking-tight">
             Student Management
           </h1>
+
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to manage your institution.
+            Sign in to access your account.
           </p>
         </div>
 
@@ -72,12 +78,14 @@ export function LoginPage() {
               <label htmlFor="email" className="text-sm font-medium">
                 Email address
               </label>
+
               <div className="relative">
                 <Mail
                   size={18}
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 />
+
                 <input
                   id="email"
                   name="email"
@@ -97,12 +105,14 @@ export function LoginPage() {
               <label htmlFor="password" className="text-sm font-medium">
                 Password
               </label>
+
               <div className="relative">
                 <LockKeyhole
                   size={18}
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 />
+
                 <input
                   id="password"
                   name="password"
@@ -114,6 +124,7 @@ export function LoginPage() {
                   placeholder="Enter your password"
                   className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-11 text-sm outline-none transition focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
                 />
+
                 <button
                   type="button"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -155,8 +166,19 @@ export function LoginPage() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs leading-5 text-muted-foreground">
-          Authorized administrators only. Accounts must be active to sign in.
+        <p className="mt-5 text-center text-sm text-muted-foreground">
+          Need a student account?{' '}
+          <button
+            type="button"
+            onClick={onRegister}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Register here
+          </button>
+        </p>
+
+        <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
+          Accounts must be approved and active to sign in.
         </p>
       </section>
     </main>

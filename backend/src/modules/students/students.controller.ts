@@ -66,6 +66,18 @@ export class StudentsController {
     return this.studentsService.update(id, dto);
   }
 
+  @Get('pending-registrations')
+  @Roles('admin')
+  findPendingRegistrations() {
+    return this.studentsService.findPendingRegistrations();
+  }
+
+  @Post(':id/approve')
+  @Roles('admin')
+  approveRegistration(@Param('id', ParseUUIDPipe) id: string) {
+    return this.studentsService.approveRegistration(id);
+  }
+
   @Get(':id')
   @Roles('admin')
   findOne(@Param('id', ParseUUIDPipe) id: string) {

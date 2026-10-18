@@ -6,7 +6,13 @@ import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { DatabaseService } from '../src/database/database.service.js';
-import { roles, userRoles, users } from '../src/database/schema.js';
+import {
+  departments,
+  roles,
+  students,
+  userRoles,
+  users,
+} from '../src/database/schema.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -26,6 +32,7 @@ describe('Authentication (e2e)', () => {
   let app: INestApplication<App>;
   let database: DatabaseService;
   let email: string;
+  let departmentId: string;
 
   const password = 'StrongPassword123!';
 
@@ -48,6 +55,21 @@ describe('Authentication (e2e)', () => {
 
     await app.init();
     database = app.get(DatabaseService);
+
+    const [department] = await database.db
+      .insert(departments)
+      .values({
+        code: `AUTH-${randomUUID().slice(0, 8)}`,
+        name: 'Authentication Test Department',
+        description: 'Department created for authentication E2E tests',
+      })
+      .returning({ id: departments.id });
+
+    if (!department) {
+      throw new Error('Failed to create the authentication test department');
+    }
+
+    departmentId = department.id;
   });
 
   afterEach(async () => {
@@ -59,21 +81,43 @@ describe('Authentication (e2e)', () => {
         .limit(1);
 
       if (user) {
+        await database.db.delete(students).where(eq(students.userId, user.id));
+
         await database.db
           .delete(userRoles)
           .where(eq(userRoles.userId, user.id));
 
         await database.db.delete(users).where(eq(users.id, user.id));
       }
+
+      await database.db
+        .delete(departments)
+        .where(eq(departments.id, departmentId));
     } finally {
       await app.close();
     }
   });
 
+  function registrationPayload(
+    registrationEmail = email,
+    extra: Record<string, unknown> = {},
+  ) {
+    return {
+      email: registrationEmail,
+      password,
+      firstName: 'Test',
+      lastName: 'Student',
+      departmentId,
+      number: `AUTH-${randomUUID().slice(0, 12)}`,
+      birth: '2005-05-15',
+      ...extra,
+    };
+  }
+
   function registerUser() {
     return request(app.getHttpServer())
       .post('/auth/register')
-      .send({ email, password });
+      .send(registrationPayload());
   }
 
   async function activateUser() {
@@ -128,7 +172,7 @@ describe('Authentication (e2e)', () => {
     const response = await registerUser().expect(201);
 
     expect(response.body.message).toBe(
-      'Registration successful. Your account is pending activation.',
+      'Registration submitted successfully. Your account is awaiting administrator approval.',
     );
 
     expect(response.body.user).toMatchObject({
@@ -144,10 +188,7 @@ describe('Authentication (e2e)', () => {
   it('normalizes the email address during registration', async () => {
     const response = await request(app.getHttpServer())
       .post('/auth/register')
-      .send({
-        email: email.toUpperCase(),
-        password,
-      })
+      .send(registrationPayload(email.toUpperCase()))
       .expect(201);
 
     expect(response.body.user.email).toBe(email);
@@ -158,7 +199,7 @@ describe('Authentication (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/auth/register')
-      .send({ email: email.toUpperCase(), password })
+      .send(registrationPayload(email.toUpperCase()))
       .expect(409);
   });
 
@@ -175,11 +216,7 @@ describe('Authentication (e2e)', () => {
   it('rejects unexpected registration properties', async () => {
     await request(app.getHttpServer())
       .post('/auth/register')
-      .send({
-        email,
-        password,
-        role: 'admin',
-      })
+      .send(registrationPayload(email, { role: 'admin' }))
       .expect(400);
   });
 

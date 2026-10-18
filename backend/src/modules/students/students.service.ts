@@ -220,6 +220,75 @@ export class StudentsService {
     }
   }
 
+  async findPendingRegistrations() {
+    return this.database.db
+      .select({
+        id: students.id,
+        userId: students.userId,
+        email: users.email,
+        departmentId: students.departmentId,
+        departmentName: departments.name,
+        number: students.number,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        birth: students.birth,
+        accountStatus: users.status,
+        submittedAt: users.createdAt,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.userId, users.id))
+      .innerJoin(departments, eq(students.departmentId, departments.id))
+      .where(and(eq(users.status, 'pending'), isNull(students.deletedAt)));
+  }
+
+  async approveRegistration(studentId: string) {
+    const [student] = await this.database.db
+      .select({
+        id: students.id,
+        userId: students.userId,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.userId, users.id))
+      .where(
+        and(
+          eq(students.id, studentId),
+          eq(users.status, 'pending'),
+          isNull(students.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!student) {
+      throw new NotFoundException(
+        'Pending registration not found or already processed',
+      );
+    }
+
+    const [activatedUser] = await this.database.db
+      .update(users)
+      .set({
+        status: 'active',
+        updatedAt: new Date(),
+      })
+      .where(and(eq(users.id, student.userId), eq(users.status, 'pending')))
+      .returning({
+        id: users.id,
+        email: users.email,
+        status: users.status,
+      });
+
+    if (!activatedUser) {
+      throw new ConflictException(
+        'This registration has already been processed',
+      );
+    }
+
+    return {
+      message: 'Student account approved successfully',
+      user: activatedUser,
+    };
+  }
+
   async findMyProfile(userId: string) {
     const [student] = await this.database.db
       .select({

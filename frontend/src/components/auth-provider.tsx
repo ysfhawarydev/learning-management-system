@@ -15,9 +15,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await loginRequest(email, password);
+    const { roles } = response.user;
 
-    if (!response.user.roles.includes('admin')) {
-      throw new Error('This dashboard requires an administrator account.');
+    if (!roles.includes('admin') && !roles.includes('student')) {
+      throw new Error(
+        'Your account does not have access to this application yet.',
+      );
     }
 
     setUser(response.user);

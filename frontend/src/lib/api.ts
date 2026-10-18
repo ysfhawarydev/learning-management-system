@@ -92,6 +92,75 @@ export async function loginRequest(
   });
 }
 
+export interface RegisterInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  departmentId: string;
+  number: string;
+  birth: string;
+}
+
+export interface RegisterResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    status: string;
+    createdAt: string;
+  };
+}
+
+export async function registerRequest(
+  input: RegisterInput,
+): Promise<RegisterResponse> {
+  return apiRequest<RegisterResponse>('/auth/register', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function getRegistrationDepartments(): Promise<Department[]> {
+  return apiRequest<Department[]>('/auth/departments');
+}
+
+export interface PendingRegistration {
+  id: string;
+  userId: string;
+  email: string;
+  departmentId: string;
+  departmentName: string;
+  number: string;
+  firstName: string;
+  lastName: string;
+  birth: string;
+  accountStatus: 'pending';
+  submittedAt: string;
+}
+
+export async function getPendingRegistrations(
+  token: string,
+): Promise<PendingRegistration[]> {
+  return apiRequest<PendingRegistration[]>('/students/pending-registrations', {
+    method: 'GET',
+    token,
+  });
+}
+
+export async function approveRegistration(
+  token: string,
+  studentId: string,
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(
+    `/students/${encodeURIComponent(studentId)}/approve`,
+    {
+      method: 'POST',
+      token,
+    },
+  );
+}
+
 export interface Student {
   id: string;
   userId: string;
