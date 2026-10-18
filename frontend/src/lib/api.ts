@@ -250,3 +250,115 @@ export async function deleteStudent(token: string, id: string): Promise<void> {
     token,
   });
 }
+
+export interface DepartmentRecord {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CourseRecord {
+  id: string;
+  departmentId: string;
+  code: string;
+  title: string;
+  description: string | null;
+  creditValue: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDepartmentInput {
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export type UpdateDepartmentInput = Partial<CreateDepartmentInput>;
+
+export interface CreateCourseInput {
+  departmentId: string;
+  code: string;
+  title: string;
+  description?: string;
+  creditValue: number;
+}
+
+export type UpdateCourseInput = Partial<CreateCourseInput>;
+
+export function getAcademicDepartments(token: string) {
+  return apiRequest<DepartmentRecord[]>('/departments', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function createDepartment(token: string, input: CreateDepartmentInput) {
+  return apiRequest<DepartmentRecord>('/departments', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateDepartment(
+  token: string,
+  id: string,
+  input: UpdateDepartmentInput,
+) {
+  return apiRequest<DepartmentRecord>(
+    `/departments/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function deleteDepartment(token: string, id: string) {
+  return apiRequest<{ message: string }>(
+    `/departments/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  );
+}
+
+export function getCourses(token: string) {
+  return apiRequest<CourseRecord[]>('/courses', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function createCourse(token: string, input: CreateCourseInput) {
+  return apiRequest<CourseRecord>('/courses', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateCourse(
+  token: string,
+  id: string,
+  input: UpdateCourseInput,
+) {
+  return apiRequest<CourseRecord>(`/courses/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    token,
+    body: input,
+  });
+}
+
+export function deleteCourse(token: string, id: string) {
+  return apiRequest<{ message: string }>(`/courses/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token,
+  });
+}

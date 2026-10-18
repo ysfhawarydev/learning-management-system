@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { ApiError, getStudents } from '@/lib/api';
 import type { Student } from '@/lib/api';
 import { PendingRegistrationsPanel } from '@/components/pending-registrations-panel';
+import { DepartmentsPage } from './components/departments-page';
 
 const statistics = [
   {
@@ -97,6 +98,7 @@ function Overview() {
 
   return (
     <div className="space-y-8">
+      <PendingRegistrationsPanel />
       <section className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="text-sm font-medium text-primary">Workspace overview</p>
@@ -402,10 +404,9 @@ function App() {
       {activePage === 'Overview' ? (
         <Overview />
       ) : activePage === 'Students' ? (
-        <>
-          <PendingRegistrationsPanel />
-          <StudentsPage />
-        </>
+        <StudentsPage />
+      ) : activePage === 'Departments' ? (
+        <DepartmentsPage />
       ) : (
         <PlaceholderPage page={activePage} />
       )}
