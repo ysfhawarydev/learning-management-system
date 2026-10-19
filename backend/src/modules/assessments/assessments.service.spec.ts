@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseService } from '../../database/database.service.js';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 import { AssessmentsService } from './assessments.service.js';
 
 describe('AssessmentsService', () => {
@@ -12,10 +14,12 @@ describe('AssessmentsService', () => {
 
   const mockLimit = vi.fn();
   const mockOrderBy = vi.fn();
+  const mockInnerJoin = vi.fn();
   const mockSelectWhere = vi.fn(() => ({ limit: mockLimit }));
   const mockSelectFrom = vi.fn(() => ({
     where: mockSelectWhere,
     orderBy: mockOrderBy,
+    innerJoin: mockInnerJoin,
   }));
   const mockSelect = vi.fn(() => ({ from: mockSelectFrom }));
 
@@ -43,6 +47,7 @@ describe('AssessmentsService', () => {
 
   const offeringId = '22222222-2222-4222-8222-222222222222';
   const assessmentId = '33333333-3333-4333-8333-333333333333';
+  const instructorId = '44444444-4444-4444-8444-444444444444';
 
   const assessment = {
     id: assessmentId,
@@ -53,6 +58,21 @@ describe('AssessmentsService', () => {
     weight: '30.00',
   };
 
+  const adminUser = {
+    sub: 'admin-user-id',
+    roles: ['admin'],
+  } as AuthenticatedUser;
+
+  const instructorUser = {
+    sub: 'instructor-user-id',
+    roles: ['instructor'],
+  } as AuthenticatedUser;
+
+  const studentUser = {
+    sub: 'student-user-id',
+    roles: ['student'],
+  } as AuthenticatedUser;
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -62,13 +82,23 @@ describe('AssessmentsService', () => {
     mockSelectFrom.mockReturnValue({
       where: mockSelectWhere,
       orderBy: mockOrderBy,
+      innerJoin: mockInnerJoin,
     });
     mockSelectWhere.mockReturnValue({ limit: mockLimit });
+    mockInnerJoin.mockReturnValue({
+      where: vi.fn(() => ({
+        orderBy: mockOrderBy,
+        limit: mockLimit,
+      })),
+    });
+
     mockInsert.mockReturnValue({ values: mockValues });
     mockValues.mockReturnValue({ returning: mockReturning });
+
     mockUpdate.mockReturnValue({ set: mockUpdateSet });
     mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
     mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
+
     mockDelete.mockReturnValue({ where: mockDeleteWhere });
     mockDeleteWhere.mockReturnValue({ returning: mockDeleteReturning });
   });
@@ -137,30 +167,78 @@ describe('AssessmentsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('lists assessments ordered by name', async () => {
-    mockOrderBy.mockResolvedValue([assessment]);
+  it('lists assessments ordered by name for an admin', async () => {
+    mockOrderBy.mockResolvedValueOnce([assessment]);
 
-    await expect(service.findAll()).resolves.toEqual([assessment]);
+    await expect(service.findAll(adminUser)).resolves.toEqual([assessment]);
+
     expect(mockOrderBy).toHaveBeenCalledOnce();
   });
 
-  it('retrieves an assessment by ID', async () => {
-    mockLimit.mockResolvedValueOnce([assessment]);
+  it('lists only the instructor assessments', async () => {
+    mockLimit.mockResolvedValueOnce([{ id: instructorId }]);
+    mockOrderBy.mockResolvedValueOnce([assessment]);
 
-    await expect(service.findOne(assessmentId)).resolves.toEqual(assessment);
+    await expect(service.findAll(instructorUser)).resolves.toEqual([
+      assessment,
+    ]);
+
+    expect(mockLimit).toHaveBeenCalledOnce();
+    expect(mockOrderBy).toHaveBeenCalledOnce();
+  });
+
+  it('forbids listing assessments for a student', async () => {
+    await expect(service.findAll(studentUser)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('retrieves an assessment by ID for an admin', async () => {
+    mockLimit.mockResolvedValueOnce([{ assessment, instructorId }]);
+
+    await expect(service.findOne(assessmentId, adminUser)).resolves.toEqual(
+      assessment,
+    );
+  });
+
+  it('allows an instructor to retrieve their own assessment', async () => {
+    mockLimit
+      .mockResolvedValueOnce([{ assessment, instructorId }])
+      .mockResolvedValueOnce([{ id: instructorId }]);
+
+    await expect(
+      service.findOne(assessmentId, instructorUser),
+    ).resolves.toEqual(assessment);
+  });
+
+  it('forbids an instructor from retrieving another instructor assessment', async () => {
+    mockLimit
+      .mockResolvedValueOnce([
+        { assessment, instructorId: 'other-instructor-id' },
+      ])
+      .mockResolvedValueOnce([{ id: instructorId }]);
+
+    await expect(
+      service.findOne(assessmentId, instructorUser),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('throws when an assessment does not exist', async () => {
     mockLimit.mockResolvedValueOnce([]);
 
-    await expect(service.findOne(assessmentId)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.findOne(assessmentId, adminUser),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('updates assessment fields and formats numeric values', async () => {
     mockUpdateReturning.mockResolvedValue([
-      { ...assessment, name: 'Final Exam', maxScore: '80.50', weight: '40.25' },
+      {
+        ...assessment,
+        name: 'Final Exam',
+        maxScore: '80.50',
+        weight: '40.25',
+      },
     ]);
 
     await expect(

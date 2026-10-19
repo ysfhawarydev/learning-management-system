@@ -570,6 +570,98 @@ describe('Assignments (e2e)', () => {
       });
   });
 
+  it('lists assignment submissions for admins and the assigned instructor only', async () => {
+    const { admin, instructorAccount, offering, department, course, semester } =
+      await setupDependencies();
+
+    const assessment = await createAssessment(admin.token, offering.id);
+    const assignment = await createAssignment(admin.token, assessment.id);
+
+    const { account: studentAccount, student } = await createStudent(
+      admin.token,
+      department.id,
+    );
+
+    await createEnrollment(admin.token, student.id, offering.id);
+
+    const submission = await request(app.getHttpServer())
+      .post(`/assignments/${assignment.body.id}/submissions`)
+      .set('Authorization', `Bearer ${studentAccount.token}`)
+      .send({ content: 'My completed assignment.' })
+      .expect(201);
+
+    const adminResponse = await request(app.getHttpServer())
+      .get(`/assignments/${assignment.body.id}/submissions`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .expect(200);
+
+    expect(adminResponse.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          submission: expect.objectContaining({
+            id: submission.body.id,
+            assignmentId: assignment.body.id,
+            content: 'My completed assignment.',
+          }),
+          student: expect.objectContaining({
+            id: student.id,
+            number: expect.any(String),
+            firstName: 'E2E',
+            lastName: 'Student',
+          }),
+        }),
+      ]),
+    );
+
+    const instructorResponse = await request(app.getHttpServer())
+      .get(`/assignments/${assignment.body.id}/submissions`)
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .expect(200);
+
+    expect(instructorResponse.body).toEqual(adminResponse.body);
+
+    const otherInstructorAccount = await createAccount('instructor');
+    const otherInstructor = await createInstructor(
+      otherInstructorAccount.id,
+      department.id,
+    );
+
+    const otherOffering = await createOffering(
+      admin.token,
+      course.id,
+      semester.id,
+      otherInstructor.id,
+    );
+
+    const otherAssessment = await createAssessment(
+      admin.token,
+      otherOffering.id,
+    );
+
+    const otherAssignment = await createAssignment(
+      admin.token,
+      otherAssessment.id,
+    );
+
+    await request(app.getHttpServer())
+      .get(`/assignments/${assignment.body.id}/submissions`)
+      .set('Authorization', `Bearer ${otherInstructorAccount.token}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/assignments/${assignment.body.id}/submissions`)
+      .set('Authorization', `Bearer ${studentAccount.token}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/assignments/${otherAssignment.body.id}/submissions`)
+      .set('Authorization', `Bearer ${otherInstructorAccount.token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual([]);
+      });
+  });
+
   it('does not expose assignments to students who are not enrolled', async () => {
     const { admin, offering, department } = await setupDependencies();
     const assessment = await createAssessment(admin.token, offering.id);

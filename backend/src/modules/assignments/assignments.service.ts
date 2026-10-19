@@ -432,6 +432,31 @@ export class AssignmentsService {
     };
   }
 
+  async findSubmissions(assignmentId: string, user: AuthenticatedUser) {
+    const result = await this.findAssignment(assignmentId);
+
+    await this.assertCanManage(user, result.courseOffering.instructorId);
+
+    return this.database.db
+      .select({
+        submission: assignmentSubmissions,
+        student: {
+          id: students.id,
+          number: students.number,
+          firstName: students.firstName,
+          lastName: students.lastName,
+        },
+      })
+      .from(assignmentSubmissions)
+      .innerJoin(
+        enrollments,
+        eq(assignmentSubmissions.enrollmentId, enrollments.id),
+      )
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .where(eq(assignmentSubmissions.assignmentId, assignmentId))
+      .orderBy(assignmentSubmissions.submittedAt);
+  }
+
   async review(
     assignmentId: string,
     submissionId: string,

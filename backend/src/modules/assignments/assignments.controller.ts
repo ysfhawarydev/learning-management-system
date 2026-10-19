@@ -5,8 +5,8 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
-  UseGuards,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -68,6 +68,15 @@ export class AssignmentsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.assignmentsService.findMySubmission(id, request.user);
+  }
+
+  @Get(':id/submissions')
+  @Roles('admin', 'instructor')
+  findSubmissions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.assignmentsService.findSubmissions(id, request.user);
   }
 
   @Post(':id/submissions/:submissionId/review')
