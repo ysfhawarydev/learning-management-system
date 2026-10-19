@@ -17,6 +17,7 @@ import { AttendancePage } from '@/components/attendance-page';
 import { CoursesPage } from '@/components/courses-page';
 import { CourseOfferingsPage } from '@/components/course-offerings-page';
 import { DepartmentsPage } from '@/components/departments-page';
+import { InstructorDashboard } from '@/components/instructor-dashboard';
 import { InstructorsPage } from '@/components/instructors-page';
 import { LoginPage } from '@/components/login-page';
 import { PendingRegistrationsPanel } from '@/components/pending-registrations-panel';
@@ -35,6 +36,7 @@ import {
   getStudents,
 } from '@/lib/api';
 import type { CourseRecord, Student } from '@/lib/api';
+import { AssessmentsPage } from '@/components/assessments-page';
 
 const statistics = [
   {
@@ -605,79 +607,6 @@ function StudentDashboard() {
   );
 }
 
-function InstructorDashboard() {
-  const { user, logout } = useAuth();
-
-  return (
-    <main className="min-h-svh bg-background px-4 py-10 text-foreground sm:px-8">
-      <div className="mx-auto max-w-4xl">
-        <header className="flex items-center justify-between gap-4 border-b border-border pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <GraduationCap size={24} aria-hidden="true" />
-            </div>
-
-            <div>
-              <h1 className="font-semibold tracking-tight">
-                Instructor Portal
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Student Management System
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={logout}
-            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-accent"
-          >
-            <LogOut size={16} aria-hidden="true" />
-            Sign out
-          </button>
-        </header>
-
-        <section className="py-10">
-          <p className="text-sm font-medium text-primary">
-            Instructor workspace
-          </p>
-
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">
-            Welcome back!
-          </h2>
-
-          <p className="mt-3 text-muted-foreground">
-            You are signed in as an instructor.
-          </p>
-        </section>
-
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h3 className="font-semibold">Your account</h3>
-
-          <div className="mt-5 space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Email address</p>
-              <p className="mt-1 break-all text-sm font-medium">
-                {user?.email}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-muted-foreground">Account role</p>
-              <p className="mt-1 text-sm font-medium">Instructor</p>
-            </div>
-          </div>
-        </section>
-
-        <p className="mt-6 text-sm leading-6 text-muted-foreground">
-          Teaching assignments, attendance, and grade management can be added to
-          this workspace as instructor permissions and workflows are built.
-        </p>
-      </div>
-    </main>
-  );
-}
-
 function App() {
   const [activePage, setActivePage] = useState<PageId>('Overview');
   const [showRegister, setShowRegister] = useState(false);
@@ -732,6 +661,8 @@ function App() {
         <CoursesPage />
       ) : activePage === 'Course Offerings' ? (
         <CourseOfferingsPage />
+      ) : activePage === 'Assessments' ? (
+        <AssessmentsPage />
       ) : activePage === 'Semesters' ? (
         <SemestersPage />
       ) : activePage === 'Attendance' ? (

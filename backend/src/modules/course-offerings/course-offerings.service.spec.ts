@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,7 +17,10 @@ describe('CourseOfferingsService', () => {
   const mockValues = vi.fn(() => ({ returning: mockReturning }));
   const mockLimit = vi.fn();
   const mockOrderBy = vi.fn();
-  const mockSelectWhere = vi.fn(() => ({ limit: mockLimit }));
+  const mockSelectWhere = vi.fn(() => ({
+    limit: mockLimit,
+    orderBy: mockOrderBy,
+  }));
   const mockSelectFrom = vi.fn(() => ({
     where: mockSelectWhere,
     orderBy: mockOrderBy,
@@ -61,7 +65,10 @@ describe('CourseOfferingsService', () => {
       where: mockSelectWhere,
       orderBy: mockOrderBy,
     });
-    mockSelectWhere.mockReturnValue({ limit: mockLimit });
+    mockSelectWhere.mockReturnValue({
+      limit: mockLimit,
+      orderBy: mockOrderBy,
+    });
     mockDeleteWhere.mockReturnValue({ returning: mockReturning });
   });
 
@@ -155,11 +162,41 @@ describe('CourseOfferingsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('lists offerings ordered by section code', async () => {
+  it('lists all offerings for an admin', async () => {
     mockOrderBy.mockResolvedValue([offering]);
 
-    await expect(service.findAll()).resolves.toEqual([offering]);
+    await expect(
+      service.findAll({
+        sub: 'admin-user-id',
+        roles: ['admin'],
+      } as never),
+    ).resolves.toEqual([offering]);
+
     expect(mockOrderBy).toHaveBeenCalledOnce();
+  });
+
+  it('lists only the instructor’s own offerings', async () => {
+    mockLimit.mockResolvedValue([{ id: instructorId }]);
+    mockOrderBy.mockResolvedValue([offering]);
+
+    await expect(
+      service.findAll({
+        sub: 'instructor-user-id',
+        roles: ['instructor'],
+      } as never),
+    ).resolves.toEqual([offering]);
+
+    expect(mockSelectWhere).toHaveBeenCalled();
+    expect(mockOrderBy).toHaveBeenCalledOnce();
+  });
+
+  it('rejects users without an authorized role', async () => {
+    await expect(
+      service.findAll({
+        sub: 'student-user-id',
+        roles: ['student'],
+      } as never),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('retrieves an offering by ID', async () => {

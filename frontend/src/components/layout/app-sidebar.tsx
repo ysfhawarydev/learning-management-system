@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarDays,
   CalendarRange,
+  ClipboardList,
   GraduationCap,
   LayoutDashboard,
   Settings,
@@ -19,7 +20,8 @@ export type PageId =
   | 'Semesters'
   | 'Attendance'
   | 'Settings'
-  | 'Instructors';
+  | 'Instructors'
+  | 'Assessments';
 
 interface AppSidebarProps {
   activePage: PageId;
@@ -36,6 +38,7 @@ const navigation = [
   { label: 'Departments', icon: Building2 },
   { label: 'Courses', icon: BookOpen },
   { label: 'Course Offerings', icon: BookOpenCheck },
+  { label: 'Assessments', icon: ClipboardList },
   { label: 'Semesters', icon: CalendarRange },
   { label: 'Attendance', icon: CalendarDays },
 ] as const;

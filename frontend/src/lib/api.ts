@@ -787,3 +787,207 @@ export function deleteAttendance(token: string, id: string) {
     token,
   });
 }
+
+/* -------------------------------------------------------------------------- */
+/* Assessments, assignments, submissions, and grading                         */
+/* -------------------------------------------------------------------------- */
+
+export type AssessmentType =
+  'assignment' | 'quiz' | 'midterm' | 'final' | 'project';
+
+export interface AssessmentRecord {
+  id: string;
+  courseOfferingId: string;
+  name: string;
+  type: AssessmentType;
+  maxScore: string;
+  weight: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAssessmentInput {
+  courseOfferingId: string;
+  name: string;
+  type: AssessmentType;
+  maxScore: number;
+  weight: number;
+}
+
+export interface AssignmentRecord {
+  id: string;
+  assessmentId: string;
+  instructions: string;
+  dueAt: string;
+  allowLateSubmissions: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAssignmentInput {
+  assessmentId: string;
+  instructions: string;
+  dueAt: string;
+  allowLateSubmissions: boolean;
+}
+
+export interface AssignmentDetailRecord {
+  assignment: AssignmentRecord;
+  assessment: AssessmentRecord;
+  courseOffering: CourseOfferingRecord;
+  enrollmentStatus?: EnrollmentRecord['status'];
+}
+
+export interface AssignmentSubmissionRecord {
+  id: string;
+  assignmentId: string;
+  enrollmentId: string;
+  content: string | null;
+  submissionUrl: string | null;
+  submittedAt: string;
+  feedback: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssignmentSubmissionWithStudent {
+  submission: AssignmentSubmissionRecord;
+  student: {
+    id: string;
+    number: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+export interface GradeRecord {
+  id: string;
+  enrollmentId: string;
+  assessmentId: string;
+  score: string | null;
+  gradedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MyAssignmentSubmissionRecord {
+  submission: AssignmentSubmissionRecord;
+  grade: GradeRecord | null;
+}
+
+export interface SubmitAssignmentInput {
+  content?: string;
+  submissionUrl?: string;
+}
+
+export interface ReviewSubmissionInput {
+  score: number;
+  feedback?: string;
+}
+
+export interface ReviewSubmissionResponse {
+  submission: AssignmentSubmissionRecord;
+  grade: GradeRecord;
+}
+
+export function getAssessments(token: string) {
+  return apiRequest<AssessmentRecord[]>('/assessments', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function getAssessment(token: string, id: string) {
+  return apiRequest<AssessmentRecord>(
+    `/assessments/${encodeURIComponent(id)}`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export function createAssessment(token: string, input: CreateAssessmentInput) {
+  return apiRequest<AssessmentRecord>('/assessments', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function getAssignments(token: string) {
+  return apiRequest<AssignmentDetailRecord[]>('/assignments', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function getAssignment(token: string, id: string) {
+  return apiRequest<AssignmentDetailRecord>(
+    `/assignments/${encodeURIComponent(id)}`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export function createAssignment(token: string, input: CreateAssignmentInput) {
+  return apiRequest<AssignmentRecord>('/assignments', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function getAssignmentSubmissions(token: string, assignmentId: string) {
+  return apiRequest<AssignmentSubmissionWithStudent[]>(
+    `/assignments/${encodeURIComponent(assignmentId)}/submissions`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export function reviewAssignmentSubmission(
+  token: string,
+  assignmentId: string,
+  submissionId: string,
+  input: ReviewSubmissionInput,
+) {
+  return apiRequest<ReviewSubmissionResponse>(
+    `/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(submissionId)}/review`,
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function getMyAssignmentSubmission(token: string, assignmentId: string) {
+  return apiRequest<MyAssignmentSubmissionRecord | null>(
+    `/assignments/${encodeURIComponent(assignmentId)}/my-submission`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export function submitAssignment(
+  token: string,
+  assignmentId: string,
+  input: SubmitAssignmentInput,
+) {
+  return apiRequest<AssignmentSubmissionRecord>(
+    `/assignments/${encodeURIComponent(assignmentId)}/submissions`,
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
+}

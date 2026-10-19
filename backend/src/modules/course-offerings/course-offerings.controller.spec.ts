@@ -43,12 +43,21 @@ describe('CourseOfferingsController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('delegates findAll to the service', async () => {
+  it('delegates findAll to the service with the authenticated user', async () => {
     const result = [{ id: 'offering-1' }];
+    const user = {
+      sub: 'admin-user-id',
+      email: 'admin@example.com',
+      roles: ['admin'],
+    };
+
     courseOfferingsService.findAll.mockResolvedValue(result);
 
-    await expect(controller.findAll()).resolves.toEqual(result);
-    expect(courseOfferingsService.findAll).toHaveBeenCalledOnce();
+    await expect(controller.findAll({ user } as never)).resolves.toEqual(
+      result,
+    );
+
+    expect(courseOfferingsService.findAll).toHaveBeenCalledWith(user);
   });
 
   it('delegates findOne to the service', async () => {

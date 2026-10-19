@@ -1,14 +1,16 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service.js';
-import { courseOfferings } from '../../database/schema.js';
+import { courseOfferings, instructors } from '../../database/schema.js';
 import { CreateCourseOfferingDto } from './dto/create-course-offering.dto.js';
 import { UpdateCourseOfferingDto } from './dto/update-course-offering.dto.js';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 
 function getPostgresErrorCode(error: unknown): string | undefined {
   let current: unknown = error;
@@ -74,10 +76,38 @@ export class CourseOfferingsService {
     }
   }
 
-  async findAll() {
+  private async findInstructorId(userId: string): Promise<string> {
+    const [instructor] = await this.database.db
+      .select({ id: instructors.id })
+      .from(instructors)
+      .where(eq(instructors.userId, userId))
+      .limit(1);
+
+    if (!instructor) {
+      throw new ForbiddenException('An instructor profile is required');
+    }
+
+    return instructor.id;
+  }
+
+  async findAll(user: AuthenticatedUser) {
+    if (user.roles.includes('admin')) {
+      return this.database.db
+        .select()
+        .from(courseOfferings)
+        .orderBy(courseOfferings.sectionCode);
+    }
+
+    if (!user.roles.includes('instructor')) {
+      throw new ForbiddenException('You cannot access course offerings');
+    }
+
+    const instructorId = await this.findInstructorId(user.sub);
+
     return this.database.db
       .select()
       .from(courseOfferings)
+      .where(eq(courseOfferings.instructorId, instructorId))
       .orderBy(courseOfferings.sectionCode);
   }
 

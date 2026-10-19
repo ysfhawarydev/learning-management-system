@@ -1,12 +1,18 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service.js';
-import { assessments } from '../../database/schema.js';
+import {
+  assessments,
+  courseOfferings,
+  instructors,
+} from '../../database/schema.js';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 import { CreateAssessmentDto } from './dto/create-assessment.dto.js';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto.js';
 
@@ -30,6 +36,20 @@ function getPostgresErrorCode(error: unknown): string | undefined {
 @Injectable()
 export class AssessmentsService {
   constructor(private readonly database: DatabaseService) {}
+
+  private async findInstructorId(userId: string): Promise<string> {
+    const [instructor] = await this.database.db
+      .select({ id: instructors.id })
+      .from(instructors)
+      .where(eq(instructors.userId, userId))
+      .limit(1);
+
+    if (!instructor) {
+      throw new ForbiddenException('An instructor profile is required');
+    }
+
+    return instructor.id;
+  }
 
   async create(dto: CreateAssessmentDto) {
     const name = dto.name.trim();
@@ -70,25 +90,75 @@ export class AssessmentsService {
     }
   }
 
-  async findAll() {
+  async findAll(user: AuthenticatedUser) {
+    if (user.roles.includes('admin')) {
+      return this.database.db
+        .select()
+        .from(assessments)
+        .orderBy(assessments.name);
+    }
+
+    if (!user.roles.includes('instructor')) {
+      throw new ForbiddenException('You cannot access assessments');
+    }
+
+    const instructorId = await this.findInstructorId(user.sub);
+
     return this.database.db
-      .select()
+      .select({
+        id: assessments.id,
+        courseOfferingId: assessments.courseOfferingId,
+        name: assessments.name,
+        type: assessments.type,
+        maxScore: assessments.maxScore,
+        weight: assessments.weight,
+        createdAt: assessments.createdAt,
+        updatedAt: assessments.updatedAt,
+      })
       .from(assessments)
+      .innerJoin(
+        courseOfferings,
+        eq(assessments.courseOfferingId, courseOfferings.id),
+      )
+      .where(eq(courseOfferings.instructorId, instructorId))
       .orderBy(assessments.name);
   }
 
-  async findOne(id: string) {
-    const [assessment] = await this.database.db
-      .select()
+  async findOne(id: string, user: AuthenticatedUser) {
+    const [result] = await this.database.db
+      .select({
+        assessment: assessments,
+        instructorId: courseOfferings.instructorId,
+      })
       .from(assessments)
+      .innerJoin(
+        courseOfferings,
+        eq(assessments.courseOfferingId, courseOfferings.id),
+      )
       .where(eq(assessments.id, id))
       .limit(1);
 
-    if (!assessment) {
+    if (!result) {
       throw new NotFoundException(`Assessment with ID "${id}" not found`);
     }
 
-    return assessment;
+    if (user.roles.includes('admin')) {
+      return result.assessment;
+    }
+
+    if (!user.roles.includes('instructor')) {
+      throw new ForbiddenException('You cannot access this assessment');
+    }
+
+    const instructorId = await this.findInstructorId(user.sub);
+
+    if (result.instructorId !== instructorId) {
+      throw new ForbiddenException(
+        'You can only access assessments for your own course offerings',
+      );
+    }
+
+    return result.assessment;
   }
 
   async update(id: string, dto: UpdateAssessmentDto) {

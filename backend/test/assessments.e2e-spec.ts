@@ -222,7 +222,9 @@ describe('Assessments (e2e)', () => {
     };
   }
 
-  async function createUnregisteredAccount(roleName: 'student' | 'admin') {
+  async function createUnregisteredAccount(
+    roleName: 'student' | 'admin' | 'instructor',
+  ) {
     const email = `e2e-${randomUUID()}@example.com`;
     createdEmails.push(email);
 
@@ -498,6 +500,92 @@ describe('Assessments (e2e)', () => {
     createdAssessmentIds = createdAssessmentIds.filter(
       (id) => id !== created.body.id,
     );
+  });
+
+  it('restricts instructors to their own assessments and keeps mutations admin-only', async () => {
+    const { admin, department, course, semester } = await setupDependencies();
+
+    const instructorAccount = await createUnregisteredAccount('instructor');
+    const instructor = await createInstructor(
+      instructorAccount.id,
+      department.body.id as string,
+    );
+
+    const instructorOffering = await createOffering(
+      admin.token,
+      course.body.id as string,
+      semester.id,
+      instructor.id,
+    );
+
+    const ownAssessment = await createAssessment(
+      admin.token,
+      instructorOffering.body.id as string,
+      { name: 'Instructor Own Assessment' },
+    );
+
+    const otherInstructorAccount =
+      await createUnregisteredAccount('instructor');
+
+    const otherInstructor = await createInstructor(
+      otherInstructorAccount.id,
+      department.body.id as string,
+    );
+
+    const otherOffering = await createOffering(
+      admin.token,
+      course.body.id as string,
+      semester.id,
+      otherInstructor.id,
+    );
+
+    const otherAssessment = await createAssessment(
+      admin.token,
+      otherOffering.body.id as string,
+      { name: 'Other Instructor Assessment' },
+    );
+
+    const list = await request(app.getHttpServer())
+      .get('/assessments')
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .expect(200);
+
+    expect(list.body).toEqual([
+      expect.objectContaining({ id: ownAssessment.body.id }),
+    ]);
+
+    await request(app.getHttpServer())
+      .get(`/assessments/${ownAssessment.body.id}`)
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/assessments/${otherAssessment.body.id}`)
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post('/assessments')
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .send({
+        courseOfferingId: instructorOffering.body.id,
+        name: 'Instructor Created Assessment',
+        type: 'quiz',
+        maxScore: 10,
+        weight: 10,
+      })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .patch(`/assessments/${ownAssessment.body.id}`)
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .send({ name: 'Unauthorized Update' })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .delete(`/assessments/${ownAssessment.body.id}`)
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .expect(403);
   });
 
   it('trims assessment names and accepts supported assessment types', async () => {
