@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Settings,
   UsersRound,
+  UserPlus,
 } from 'lucide-react';
 
 export type PageId =
@@ -17,6 +18,7 @@ export type PageId =
   | 'Departments'
   | 'Courses'
   | 'Course Offerings'
+  | 'Enrollments'
   | 'Semesters'
   | 'Attendance'
   | 'Settings'
@@ -38,6 +40,7 @@ const navigation = [
   { label: 'Departments', icon: Building2 },
   { label: 'Courses', icon: BookOpen },
   { label: 'Course Offerings', icon: BookOpenCheck },
+  { label: 'Enrollments', icon: UserPlus },
   { label: 'Assessments', icon: ClipboardList },
   { label: 'Semesters', icon: CalendarRange },
   { label: 'Attendance', icon: CalendarDays },
