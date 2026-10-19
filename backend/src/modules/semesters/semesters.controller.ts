@@ -28,6 +28,7 @@ export class SemestersController {
   }
 
   @Get()
+  @Roles('admin', 'instructor')
   findAll() {
     return this.semestersService.findAll();
   }

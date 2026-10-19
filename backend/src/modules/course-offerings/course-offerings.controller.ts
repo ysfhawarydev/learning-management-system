@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -15,6 +16,8 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { CreateCourseOfferingDto } from './dto/create-course-offering.dto.js';
 import { UpdateCourseOfferingDto } from './dto/update-course-offering.dto.js';
 import { CourseOfferingsService } from './course-offerings.service.js';
+import type { Request } from 'express';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 
 @Controller('course-offerings')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,8 +33,12 @@ export class CourseOfferingsController {
   }
 
   @Get()
-  findAll() {
-    return this.courseOfferingsService.findAll();
+  @Roles('admin', 'instructor')
+  findAll(
+    @Req()
+    request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.courseOfferingsService.findAll(request.user);
   }
 
   @Get(':id')
