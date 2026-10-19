@@ -21,6 +21,7 @@ import { CreateStudentDto } from './dto/create-student.dto.js';
 import { CreateStudentAccountDto } from './dto/create-student-account.dto.js';
 import { UpdateStudentDto } from './dto/update-student.dto.js';
 import { StudentsService } from './students.service.js';
+import { UpdateMyStudentProfileDto } from './dto/update-my-student-profile.dto.js';
 
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,6 +32,33 @@ export class StudentsController {
   @Roles('student')
   getMyProfile(@Req() request: Request & { user: AuthenticatedUser }) {
     return this.studentsService.findMyProfile(request.user.sub);
+  }
+
+  @Get('me/courses')
+  @Roles('student')
+  getMyCourses(@Req() request: Request & { user: AuthenticatedUser }) {
+    return this.studentsService.findMyCourses(request.user.sub);
+  }
+
+  @Get('me/attendance')
+  @Roles('student')
+  getMyAttendance(@Req() request: Request & { user: AuthenticatedUser }) {
+    return this.studentsService.findMyAttendance(request.user.sub);
+  }
+
+  @Get('me/grades')
+  @Roles('student')
+  getMyGrades(@Req() request: Request & { user: AuthenticatedUser }) {
+    return this.studentsService.findMyGrades(request.user.sub);
+  }
+
+  @Patch('me')
+  @Roles('student')
+  updateMyProfile(
+    @Req() request: Request & { user: AuthenticatedUser },
+    @Body() dto: UpdateMyStudentProfileDto,
+  ) {
+    return this.studentsService.updateMyProfile(request.user.sub, dto);
   }
 
   @Get('departments')

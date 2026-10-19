@@ -24,6 +24,7 @@ describe('StudentsService', () => {
     innerJoin: ReturnType<typeof vi.fn>;
     where: ReturnType<typeof vi.fn>;
     limit: ReturnType<typeof vi.fn>;
+    orderBy: ReturnType<typeof vi.fn>;
   };
 
   let insertQuery: {
@@ -78,11 +79,13 @@ describe('StudentsService', () => {
       innerJoin: vi.fn(),
       where: vi.fn(),
       limit: vi.fn(),
+      orderBy: vi.fn(),
     };
 
     selectQuery.from.mockReturnValue(selectQuery);
     selectQuery.innerJoin.mockReturnValue(selectQuery);
     selectQuery.where.mockReturnValue(selectQuery);
+    selectQuery.orderBy.mockReturnValue(selectQuery);
 
     insertQuery = {
       values: vi.fn(),
@@ -311,6 +314,116 @@ describe('StudentsService', () => {
       await expect(service.findMyProfile('user-123')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('updateMyProfile', () => {
+    it('should update allowed profile fields and return the updated profile', async () => {
+      const updatedProfile = {
+        id: 'student-123',
+        userId: 'user-123',
+        departmentId: 'department-123',
+        departmentName: 'Computer Science',
+        number: 'STU-2026-001',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        phone: '01234567890',
+        birth: '2005-05-15',
+        status: 'enrolled',
+      };
+
+      selectQuery.limit
+        .mockResolvedValueOnce([{ id: 'student-123' }])
+        .mockResolvedValueOnce([updatedProfile]);
+
+      updateQuery.returning.mockResolvedValueOnce([{ id: 'student-123' }]);
+
+      await expect(
+        service.updateMyProfile('user-123', {
+          firstName: 'Jane',
+          phone: '01234567890',
+        }),
+      ).resolves.toEqual(updatedProfile);
+
+      expect(updateQuery.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          firstName: 'Jane',
+          phone: '01234567890',
+          updatedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('should allow clearing the phone number', async () => {
+      selectQuery.limit
+        .mockResolvedValueOnce([{ id: 'student-123' }])
+        .mockResolvedValueOnce([{ id: 'student-123', phone: null }]);
+
+      updateQuery.returning.mockResolvedValueOnce([{ id: 'student-123' }]);
+
+      await service.updateMyProfile('user-123', { phone: null });
+
+      expect(updateQuery.set).toHaveBeenCalledWith(
+        expect.objectContaining({ phone: null }),
+      );
+    });
+
+    it('should reject an empty update', async () => {
+      await expect(service.updateMyProfile('user-123', {})).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(mockDatabase.db.select).not.toHaveBeenCalled();
+      expect(mockDatabase.db.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when the student profile does not exist', async () => {
+      selectQuery.limit.mockResolvedValueOnce([]);
+
+      await expect(
+        service.updateMyProfile('user-123', { firstName: 'Jane' }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockDatabase.db.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findMyAttendance', () => {
+    it('should return attendance records for the authenticated student', async () => {
+      const student = { id: 'student-123' };
+      const records = [
+        {
+          id: 'attendance-123',
+          enrollmentId: 'enrollment-123',
+          sessionDate: '2026-10-15',
+          status: 'present',
+          courseCode: 'CS101',
+          courseTitle: 'Introduction to Computer Science',
+        },
+      ];
+
+      selectQuery.limit.mockResolvedValueOnce([student]);
+      selectQuery.orderBy.mockResolvedValueOnce(records);
+
+      await expect(service.findMyAttendance('user-123')).resolves.toEqual(
+        records,
+      );
+
+      expect(mockDatabase.db.select).toHaveBeenCalledTimes(2);
+      expect(selectQuery.where).toHaveBeenCalledTimes(2);
+      expect(selectQuery.innerJoin).toHaveBeenCalled();
+      expect(selectQuery.orderBy).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when the student profile does not exist', async () => {
+      selectQuery.limit.mockResolvedValueOnce([]);
+
+      await expect(
+        service.findMyAttendance('user-without-profile'),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockDatabase.db.select).toHaveBeenCalledTimes(1);
+      expect(selectQuery.innerJoin).not.toHaveBeenCalled();
     });
   });
 

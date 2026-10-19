@@ -90,12 +90,12 @@ export function LoginPage({ onRegister }: LoginPageProps) {
                   id="email"
                   name="email"
                   type="email"
-                  autoComplete="username"
+                  autoComplete="off"
                   required
                   maxLength={255}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="admin@example.com"
+                  placeholder="you@example.com"
                   className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none transition focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
                 />
               </div>
@@ -117,7 +117,7 @@ export function LoginPage({ onRegister }: LoginPageProps) {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  autoComplete="off"
                   required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

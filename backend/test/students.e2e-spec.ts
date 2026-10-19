@@ -8,11 +8,19 @@ import { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { DatabaseService } from '../src/database/database.service.js';
 import {
+  attendance,
+  courseOfferings,
+  courses,
   departments,
+  enrollments,
+  instructors,
   roles,
+  semesters,
   students,
   userRoles,
   users,
+  assessments,
+  grades,
 } from '../src/database/schema.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -35,10 +43,27 @@ describe('Students (e2e)', () => {
   let departmentId: string;
 
   const password = 'StrongPassword123!';
+
   let createdEmails: string[];
+  let createdEnrollmentIds: string[];
+  let createdOfferingIds: string[];
+  let createdCourseIds: string[];
+  let createdInstructorIds: string[];
+  let createdSemesterIds: string[];
+  let createdAttendanceIds: string[];
+  let createdAssessmentIds: string[];
+  let createdGradeIds: string[];
 
   beforeEach(async () => {
     createdEmails = [];
+    createdEnrollmentIds = [];
+    createdOfferingIds = [];
+    createdCourseIds = [];
+    createdInstructorIds = [];
+    createdSemesterIds = [];
+    createdAttendanceIds = [];
+    createdAssessmentIds = [];
+    createdGradeIds = [];
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -76,6 +101,40 @@ describe('Students (e2e)', () => {
 
   afterEach(async () => {
     try {
+      for (const id of createdAttendanceIds) {
+        await database.db.delete(attendance).where(eq(attendance.id, id));
+      }
+
+      for (const id of createdGradeIds) {
+        await database.db.delete(grades).where(eq(grades.id, id));
+      }
+
+      for (const id of createdAssessmentIds) {
+        await database.db.delete(assessments).where(eq(assessments.id, id));
+      }
+      // Delete academic records before their referenced records.
+      for (const id of createdEnrollmentIds) {
+        await database.db.delete(enrollments).where(eq(enrollments.id, id));
+      }
+
+      for (const id of createdOfferingIds) {
+        await database.db
+          .delete(courseOfferings)
+          .where(eq(courseOfferings.id, id));
+      }
+
+      for (const id of createdCourseIds) {
+        await database.db.delete(courses).where(eq(courses.id, id));
+      }
+
+      for (const id of createdInstructorIds) {
+        await database.db.delete(instructors).where(eq(instructors.id, id));
+      }
+
+      for (const id of createdSemesterIds) {
+        await database.db.delete(semesters).where(eq(semesters.id, id));
+      }
+
       for (const email of createdEmails) {
         const [user] = await database.db
           .select({ id: users.id })
@@ -150,8 +209,8 @@ describe('Students (e2e)', () => {
     };
   }
 
-  // Do not mark this helper async: Supertest's .expect() must be
-  // chained to the request before awaiting it.
+  // Keep this helper synchronous so Supertest's .expect() can be chained
+  // before the request is awaited.
   function createStudent(
     adminToken: string,
     userId: string,
@@ -168,6 +227,93 @@ describe('Students (e2e)', () => {
         lastName: 'Doe',
         birth: '2005-05-15',
       });
+  }
+
+  async function createMyCoursesFixture() {
+    const admin = await createAccount('admin');
+    const studentUser = await createAccount('student');
+
+    const studentResponse = await createStudent(
+      admin.token,
+      studentUser.id,
+    ).expect(201);
+
+    const [semester] = await database.db
+      .insert(semesters)
+      .values({
+        academicYear: `E2E-${randomUUID().slice(0, 8)}`,
+        term: 'fall',
+        startDate: '2026-09-01',
+        endDate: '2026-12-31',
+      })
+      .returning();
+
+    if (!semester) {
+      throw new Error('Failed to create E2E semester');
+    }
+
+    createdSemesterIds.push(semester.id);
+
+    const [instructor] = await database.db
+      .insert(instructors)
+      .values({
+        userId: admin.id,
+        departmentId,
+        employeeNumber: `E2E-${randomUUID().slice(0, 8)}`,
+        firstName: 'E2E',
+        lastName: 'Instructor',
+      })
+      .returning();
+
+    if (!instructor) {
+      throw new Error('Failed to create E2E instructor');
+    }
+
+    createdInstructorIds.push(instructor.id);
+
+    const [course] = await database.db
+      .insert(courses)
+      .values({
+        departmentId,
+        code: `E2E-${randomUUID().slice(0, 8)}`,
+        title: 'E2E Student Course',
+        description: 'Course used to test student-specific access',
+        creditValue: 3,
+      })
+      .returning();
+
+    if (!course) {
+      throw new Error('Failed to create E2E course');
+    }
+
+    createdCourseIds.push(course.id);
+
+    const [offering] = await database.db
+      .insert(courseOfferings)
+      .values({
+        courseId: course.id,
+        semesterId: semester.id,
+        instructorId: instructor.id,
+        sectionCode: 'A',
+        capacity: 30,
+      })
+      .returning();
+
+    if (!offering) {
+      throw new Error('Failed to create E2E offering');
+    }
+
+    createdOfferingIds.push(offering.id);
+
+    return {
+      admin,
+      studentUser,
+      studentId: studentResponse.body.id as string,
+      course,
+      offering,
+      semesterId: semester.id,
+      instructorId: instructor.id,
+    };
   }
 
   it('rejects unauthenticated access to student endpoints', async () => {
@@ -346,6 +492,65 @@ describe('Students (e2e)', () => {
     });
   });
 
+  it('allows a student to update their own profile', async () => {
+    const admin = await createAccount('admin');
+    const studentUser = await createAccount('student');
+
+    const created = await createStudent(admin.token, studentUser.id).expect(
+      201,
+    );
+
+    const response = await request(app.getHttpServer())
+      .patch('/students/me')
+      .set('Authorization', `Bearer ${studentUser.token}`)
+      .send({
+        firstName: 'Updated',
+        lastName: 'Student',
+        phone: '01234567890',
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: created.body.id,
+      userId: studentUser.id,
+      firstName: 'Updated',
+      lastName: 'Student',
+      phone: '01234567890',
+    });
+
+    await request(app.getHttpServer())
+      .patch('/students/me')
+      .set('Authorization', `Bearer ${studentUser.token}`)
+      .send({ status: 'graduated' })
+      .expect(400);
+
+    const profile = await request(app.getHttpServer())
+      .get('/students/me')
+      .set('Authorization', `Bearer ${studentUser.token}`)
+      .expect(200);
+
+    expect(profile.body.status).toBe(created.body.status);
+  });
+
+  it('rejects whitespace-only names when updating a student profile', async () => {
+    const admin = await createAccount('admin');
+    const studentUser = await createAccount('student');
+
+    await createStudent(admin.token, studentUser.id).expect(201);
+
+    await request(app.getHttpServer())
+      .patch('/students/me')
+      .set('Authorization', `Bearer ${studentUser.token}`)
+      .send({ firstName: '   ' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .patch('/students/me')
+      .set('Authorization', `Bearer ${studentUser.token}`)
+      .send({ lastName: '   ' })
+      .expect(400);
+  });
+
   it('returns 404 when a student has no profile yet', async () => {
     const student = await createAccount('student');
 
@@ -355,6 +560,31 @@ describe('Students (e2e)', () => {
       .expect(404);
 
     expect(response.body.message).toBe('Student profile not found');
+  });
+
+  it('returns 404 when updating a profile that does not exist', async () => {
+    const student = await createAccount('student');
+
+    const response = await request(app.getHttpServer())
+      .patch('/students/me')
+      .set('Authorization', `Bearer ${student.token}`)
+      .send({ firstName: 'Updated' })
+      .expect(404);
+
+    expect(response.body.message).toBe('Student profile not found');
+  });
+
+  it('rejects an empty self-profile update', async () => {
+    const admin = await createAccount('admin');
+    const studentUser = await createAccount('student');
+
+    await createStudent(admin.token, studentUser.id).expect(201);
+
+    await request(app.getHttpServer())
+      .patch('/students/me')
+      .set('Authorization', `Bearer ${studentUser.token}`)
+      .send({})
+      .expect(400);
   });
 
   it('forbids students from listing student profiles', async () => {
@@ -499,5 +729,420 @@ describe('Students (e2e)', () => {
       .delete(`/students/${created.body.id}`)
       .set('Authorization', `Bearer ${otherStudent.token}`)
       .expect(403);
+  });
+
+  it('allows a student to retrieve only their own courses', async () => {
+    const fixture = await createMyCoursesFixture();
+
+    const otherStudentUser = await createAccount('student');
+    const otherStudentResponse = await createStudent(
+      fixture.admin.token,
+      otherStudentUser.id,
+    ).expect(201);
+
+    const [ownEnrollment] = await database.db
+      .insert(enrollments)
+      .values({
+        studentId: fixture.studentId,
+        courseOfferingId: fixture.offering.id,
+        status: 'enrolled',
+      })
+      .returning();
+
+    if (!ownEnrollment) {
+      throw new Error('Failed to create own enrollment');
+    }
+
+    createdEnrollmentIds.push(ownEnrollment.id);
+
+    const [otherEnrollment] = await database.db
+      .insert(enrollments)
+      .values({
+        studentId: otherStudentResponse.body.id as string,
+        courseOfferingId: fixture.offering.id,
+        status: 'enrolled',
+      })
+      .returning();
+
+    if (!otherEnrollment) {
+      throw new Error('Failed to create other student enrollment');
+    }
+
+    createdEnrollmentIds.push(otherEnrollment.id);
+
+    const response = await request(app.getHttpServer())
+      .get('/students/me/courses')
+      .set('Authorization', `Bearer ${fixture.studentUser.token}`)
+      .expect(200);
+
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0]).toMatchObject({
+      enrollmentId: ownEnrollment.id,
+      enrollmentStatus: 'enrolled',
+      courseId: fixture.course.id,
+      courseCode: fixture.course.code,
+      courseTitle: fixture.course.title,
+      courseOfferingId: fixture.offering.id,
+    });
+
+    expect(response.body).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          enrollmentId: otherEnrollment.id,
+        }),
+      ]),
+    );
+  });
+
+  it('excludes dropped and withdrawn enrollments but includes completed courses', async () => {
+    const fixture = await createMyCoursesFixture();
+
+    const statuses = ['enrolled', 'completed', 'dropped', 'withdrawn'] as const;
+
+    const offeringIds: string[] = [fixture.offering.id];
+
+    // Each enrollment needs a distinct offering due to the unique constraint
+    // on (studentId, courseOfferingId).
+    for (const sectionCode of ['B', 'C', 'D']) {
+      const [offering] = await database.db
+        .insert(courseOfferings)
+        .values({
+          courseId: fixture.course.id,
+          semesterId: fixture.semesterId,
+          instructorId: fixture.instructorId,
+          sectionCode,
+          capacity: 30,
+        })
+        .returning({ id: courseOfferings.id });
+
+      if (!offering) {
+        throw new Error(`Failed to create offering for section ${sectionCode}`);
+      }
+
+      createdOfferingIds.push(offering.id);
+      offeringIds.push(offering.id);
+    }
+
+    const enrollmentIds: Record<(typeof statuses)[number], string> = {
+      enrolled: '',
+      completed: '',
+      dropped: '',
+      withdrawn: '',
+    };
+
+    for (const [index, status] of statuses.entries()) {
+      const [enrollment] = await database.db
+        .insert(enrollments)
+        .values({
+          studentId: fixture.studentId,
+          courseOfferingId: offeringIds[index],
+          status,
+        })
+        .returning({ id: enrollments.id });
+
+      if (!enrollment) {
+        throw new Error(`Failed to create ${status} enrollment`);
+      }
+
+      createdEnrollmentIds.push(enrollment.id);
+      enrollmentIds[status] = enrollment.id;
+    }
+
+    const response = await request(app.getHttpServer())
+      .get('/students/me/courses')
+      .set('Authorization', `Bearer ${fixture.studentUser.token}`)
+      .expect(200);
+
+    const returnedEnrollmentIds = response.body.map(
+      (item: { enrollmentId: string }) => item.enrollmentId,
+    );
+
+    expect(returnedEnrollmentIds).toContain(enrollmentIds.enrolled);
+    expect(returnedEnrollmentIds).toContain(enrollmentIds.completed);
+    expect(returnedEnrollmentIds).not.toContain(enrollmentIds.dropped);
+    expect(returnedEnrollmentIds).not.toContain(enrollmentIds.withdrawn);
+  });
+
+  it('allows a student to retrieve only their own grades and ungraded assessments', async () => {
+    const fixture = await createMyCoursesFixture();
+
+    const otherStudentUser = await createAccount('student');
+    const otherStudentResponse = await createStudent(
+      fixture.admin.token,
+      otherStudentUser.id,
+    ).expect(201);
+
+    const [ownEnrollment] = await database.db
+      .insert(enrollments)
+      .values({
+        studentId: fixture.studentId,
+        courseOfferingId: fixture.offering.id,
+        status: 'enrolled',
+      })
+      .returning();
+
+    if (!ownEnrollment) {
+      throw new Error('Failed to create own enrollment');
+    }
+
+    createdEnrollmentIds.push(ownEnrollment.id);
+
+    const [otherEnrollment] = await database.db
+      .insert(enrollments)
+      .values({
+        studentId: otherStudentResponse.body.id as string,
+        courseOfferingId: fixture.offering.id,
+        status: 'enrolled',
+      })
+      .returning();
+
+    if (!otherEnrollment) {
+      throw new Error('Failed to create other student enrollment');
+    }
+
+    createdEnrollmentIds.push(otherEnrollment.id);
+
+    const [gradedAssessment] = await database.db
+      .insert(assessments)
+      .values({
+        courseOfferingId: fixture.offering.id,
+        name: 'E2E Assignment',
+        type: 'assignment',
+        maxScore: '100',
+        weight: '60',
+      })
+      .returning();
+
+    if (!gradedAssessment) {
+      throw new Error('Failed to create graded assessment');
+    }
+
+    createdAssessmentIds.push(gradedAssessment.id);
+
+    const [ungradedAssessment] = await database.db
+      .insert(assessments)
+      .values({
+        courseOfferingId: fixture.offering.id,
+        name: 'E2E Quiz',
+        type: 'quiz',
+        maxScore: '20',
+        weight: '40',
+      })
+      .returning();
+
+    if (!ungradedAssessment) {
+      throw new Error('Failed to create ungraded assessment');
+    }
+
+    createdAssessmentIds.push(ungradedAssessment.id);
+
+    const [ownGrade] = await database.db
+      .insert(grades)
+      .values({
+        enrollmentId: ownEnrollment.id,
+        assessmentId: gradedAssessment.id,
+        score: '87.50',
+        gradedAt: new Date(),
+      })
+      .returning();
+
+    if (!ownGrade) {
+      throw new Error('Failed to create own grade');
+    }
+
+    createdGradeIds.push(ownGrade.id);
+
+    const [otherGrade] = await database.db
+      .insert(grades)
+      .values({
+        enrollmentId: otherEnrollment.id,
+        assessmentId: gradedAssessment.id,
+        score: '42.00',
+        gradedAt: new Date(),
+      })
+      .returning();
+
+    if (!otherGrade) {
+      throw new Error('Failed to create other student grade');
+    }
+
+    createdGradeIds.push(otherGrade.id);
+
+    const response = await request(app.getHttpServer())
+      .get('/students/me/grades')
+      .set('Authorization', `Bearer ${fixture.studentUser.token}`)
+      .expect(200);
+
+    expect(response.body).toHaveLength(2);
+
+    expect(response.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          enrollmentId: ownEnrollment.id,
+          assessmentId: gradedAssessment.id,
+          assessmentName: 'E2E Assignment',
+          maxScore: '100.00',
+          weight: '60.00',
+          gradeId: ownGrade.id,
+          score: '87.50',
+        }),
+        expect.objectContaining({
+          enrollmentId: ownEnrollment.id,
+          assessmentId: ungradedAssessment.id,
+          assessmentName: 'E2E Quiz',
+          gradeId: null,
+          score: null,
+          gradedAt: null,
+        }),
+      ]),
+    );
+
+    expect(
+      response.body.some(
+        (item: { gradeId: string | null }) => item.gradeId === otherGrade.id,
+      ),
+    ).toBe(false);
+
+    expect(
+      response.body.every(
+        (item: { enrollmentId: string }) =>
+          item.enrollmentId === ownEnrollment.id,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns 404 when retrieving grades without a student profile', async () => {
+    const student = await createAccount('student');
+
+    const response = await request(app.getHttpServer())
+      .get('/students/me/grades')
+      .set('Authorization', `Bearer ${student.token}`)
+      .expect(404);
+
+    expect(response.body.message).toBe('Student profile not found');
+  });
+
+  it('returns 404 when retrieving courses without a student profile', async () => {
+    const student = await createAccount('student');
+
+    const response = await request(app.getHttpServer())
+      .get('/students/me/courses')
+      .set('Authorization', `Bearer ${student.token}`)
+      .expect(404);
+
+    expect(response.body.message).toBe('Student profile not found');
+  });
+
+  it('allows a student to retrieve only their own attendance records', async () => {
+    const fixture = await createMyCoursesFixture();
+
+    const otherStudentUser = await createAccount('student');
+    const otherStudentResponse = await createStudent(
+      fixture.admin.token,
+      otherStudentUser.id,
+    ).expect(201);
+
+    const [ownEnrollment] = await database.db
+      .insert(enrollments)
+      .values({
+        studentId: fixture.studentId,
+        courseOfferingId: fixture.offering.id,
+        status: 'enrolled',
+      })
+      .returning();
+
+    if (!ownEnrollment) {
+      throw new Error('Failed to create own enrollment');
+    }
+
+    createdEnrollmentIds.push(ownEnrollment.id);
+
+    const [otherEnrollment] = await database.db
+      .insert(enrollments)
+      .values({
+        studentId: otherStudentResponse.body.id as string,
+        courseOfferingId: fixture.offering.id,
+        status: 'enrolled',
+      })
+      .returning();
+
+    if (!otherEnrollment) {
+      throw new Error('Failed to create other student enrollment');
+    }
+
+    createdEnrollmentIds.push(otherEnrollment.id);
+
+    const [ownRecord] = await database.db
+      .insert(attendance)
+      .values({
+        enrollmentId: ownEnrollment.id,
+        sessionDate: '2026-10-12',
+        status: 'present',
+      })
+      .returning();
+
+    if (!ownRecord) {
+      throw new Error('Failed to create own attendance record');
+    }
+
+    createdAttendanceIds.push(ownRecord.id);
+
+    const [otherRecord] = await database.db
+      .insert(attendance)
+      .values({
+        enrollmentId: otherEnrollment.id,
+        sessionDate: '2026-10-12',
+        status: 'absent',
+      })
+      .returning();
+
+    if (!otherRecord) {
+      throw new Error('Failed to create other attendance record');
+    }
+
+    createdAttendanceIds.push(otherRecord.id);
+
+    const response = await request(app.getHttpServer())
+      .get('/students/me/attendance')
+      .set('Authorization', `Bearer ${fixture.studentUser.token}`)
+      .expect(200);
+
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0]).toMatchObject({
+      id: ownRecord.id,
+      enrollmentId: ownEnrollment.id,
+      sessionDate: '2026-10-12',
+      status: 'present',
+      courseId: fixture.course.id,
+      courseCode: fixture.course.code,
+      courseTitle: fixture.course.title,
+      courseOfferingId: fixture.offering.id,
+      sectionCode: fixture.offering.sectionCode,
+      semesterId: fixture.semesterId,
+    });
+
+    expect(response.body).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: otherRecord.id })]),
+    );
+
+    // Attendance notes should never be exposed by the student endpoint.
+    expect(response.body[0]).not.toHaveProperty('notes');
+  });
+
+  it('returns 404 when retrieving attendance without a student profile', async () => {
+    const student = await createAccount('student');
+
+    const response = await request(app.getHttpServer())
+      .get('/students/me/attendance')
+      .set('Authorization', `Bearer ${student.token}`)
+      .expect(404);
+
+    expect(response.body.message).toBe('Student profile not found');
+  });
+
+  it('rejects unauthenticated access to student attendance', async () => {
+    await request(app.getHttpServer())
+      .get('/students/me/attendance')
+      .expect(401);
   });
 });

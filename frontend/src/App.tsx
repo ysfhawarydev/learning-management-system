@@ -5,11 +5,15 @@ import {
   GraduationCap,
   LogOut,
   Users,
+  ClipboardList,
+  LayoutDashboard,
+  Settings,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { AppLayout } from '@/components/layout/app-layout';
 import type { PageId } from '@/components/layout/app-sidebar';
+import { AttendancePage } from '@/components/attendance-page';
 import { CoursesPage } from '@/components/courses-page';
 import { CourseOfferingsPage } from '@/components/course-offerings-page';
 import { DepartmentsPage } from '@/components/departments-page';
@@ -19,8 +23,17 @@ import { PendingRegistrationsPanel } from '@/components/pending-registrations-pa
 import { RegisterPage } from '@/components/register-page';
 import { SemestersPage } from '@/components/semesters-page';
 import { StudentsPage } from '@/components/students-page';
+import { SettingsPage } from '@/components/settings-page';
+import { StudentAttendancePage } from '@/components/student-attendance-page';
+import { StudentCoursesPage } from '@/components/student-courses-page';
+import { StudentGradesPage } from '@/components/student-grades-page';
 import { useAuth } from '@/hooks/use-auth';
-import { ApiError, getCourses, getStudents } from '@/lib/api';
+import {
+  ApiError,
+  getCourses,
+  getMyStudentProfile,
+  getStudents,
+} from '@/lib/api';
 import type { CourseRecord, Student } from '@/lib/api';
 
 const statistics = [
@@ -325,72 +338,270 @@ function PlaceholderPage({ page }: { page: PageId }) {
   );
 }
 
+type StudentSection =
+  'Overview' | 'My Courses' | 'Attendance' | 'Grades' | 'Settings';
+
+const studentNavigation = [
+  { label: 'Overview', icon: LayoutDashboard },
+  { label: 'My Courses', icon: BookOpen },
+  { label: 'Attendance', icon: CalendarCheck },
+  { label: 'Grades', icon: ClipboardList },
+  { label: 'Settings', icon: Settings },
+] as const;
+
 function StudentDashboard() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
+  const [activeSection, setActiveSection] =
+    useState<StudentSection>('Overview');
+  const [profile, setProfile] = useState<Student | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadProfile() {
+      if (!token) {
+        setError('You must be signed in to view your profile.');
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+
+      try {
+        const result = await getMyStudentProfile(token);
+
+        if (!cancelled) {
+          setProfile(result);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(
+            err instanceof ApiError
+              ? err.message
+              : 'Unable to load your student profile.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   return (
-    <main className="min-h-svh bg-background px-4 py-10 text-foreground sm:px-8">
-      <div className="mx-auto max-w-4xl">
-        <header className="flex items-center justify-between gap-4 border-b border-border pb-6">
+    <div className="min-h-svh bg-background text-foreground">
+      <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <GraduationCap size={24} aria-hidden="true" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <GraduationCap size={22} aria-hidden="true" />
             </div>
 
             <div>
-              <h1 className="font-semibold tracking-tight">Student Portal</h1>
-              <p className="text-sm text-muted-foreground">
-                Student Management System
+              <h1 className="font-semibold tracking-tight">EduManage</h1>
+              <p className="text-xs text-muted-foreground">
+                Academic management
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={logout}
-            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-accent"
-          >
-            <LogOut size={16} aria-hidden="true" />
-            Sign out
-          </button>
-        </header>
+          <div className="flex items-center gap-3">
+            <span className="hidden max-w-48 truncate text-sm text-muted-foreground sm:block">
+              {user?.email}
+            </span>
 
-        <section className="py-10">
-          <p className="text-sm font-medium text-primary">Student workspace</p>
+            <button
+              type="button"
+              onClick={logout}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              <LogOut size={16} aria-hidden="true" />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </div>
+        </div>
+      </header>
 
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">
-            Welcome back!
-          </h2>
-
-          <p className="mt-3 text-muted-foreground">
-            You are signed in to your student account.
+      <div className="grid min-h-[calc(100svh-4rem)] grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="min-w-0 border-b border-border bg-card p-3 lg:min-h-[calc(100svh-4rem)] lg:border-b-0 lg:border-r lg:p-5">
+          <p className="px-3 pb-3 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Workspace
           </p>
-        </section>
 
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h3 className="font-semibold">Your account</h3>
+          <nav
+            aria-label="Student navigation"
+            className="flex gap-2 overflow-x-auto lg:flex-col"
+          >
+            {studentNavigation.map(({ label, icon: Icon }) => {
+              const selected = activeSection === label;
 
-          <div className="mt-5 space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Email address</p>
-              <p className="mt-1 break-all text-sm font-medium">
-                {user?.email}
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setActiveSection(label)}
+                  aria-current={selected ? 'page' : undefined}
+                  className={`inline-flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    selected
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                  {label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <main className="min-w-0 p-4 sm:p-6 lg:p-8">
+          {activeSection === 'Settings' ? (
+            <SettingsPage />
+          ) : activeSection === 'Overview' ? (
+            <div className="mx-auto max-w-5xl space-y-8">
+              <section>
+                <p className="text-sm font-medium text-primary">
+                  Student workspace
+                </p>
+
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+                  Welcome back{profile ? `, ${profile.firstName}` : ''}!
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  View your academic profile and access your student services.
+                </p>
+              </section>
+
+              {loading ? (
+                <div
+                  role="status"
+                  className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground"
+                >
+                  Loading your academic profile…
+                </div>
+              ) : error ? (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-destructive/30 bg-card p-6"
+                >
+                  <p className="font-medium">Unable to load your profile</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('Settings')}
+                    className="mt-4 text-sm font-medium text-primary underline underline-offset-4"
+                  >
+                    Open Settings
+                  </button>
+                </div>
+              ) : profile ? (
+                <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                  <div>
+                    <h3 className="font-semibold">My academic profile</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Your registered student information.
+                    </p>
+                  </div>
+
+                  <dl className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                    {[
+                      {
+                        label: 'Full name',
+                        value: `${profile.firstName} ${profile.lastName}`,
+                      },
+                      {
+                        label: 'Student number',
+                        value: profile.number,
+                      },
+                      {
+                        label: 'Department',
+                        value: profile.departmentName,
+                      },
+                      {
+                        label: 'Email address',
+                        value: user?.email ?? 'Not available',
+                      },
+                      {
+                        label: 'Academic status',
+                        value: profile.status.replaceAll('_', ' '),
+                      },
+                      {
+                        label: 'Phone number',
+                        value: profile.phone || 'Not provided',
+                      },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="min-w-0">
+                        <dt className="text-sm text-muted-foreground">
+                          {label}
+                        </dt>
+                        <dd className="mt-1 break-words text-sm font-medium capitalize">
+                          {value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('Settings')}
+                    className="mt-6 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    Manage my profile
+                  </button>
+                </section>
+              ) : (
+                <section className="rounded-xl border border-border bg-card p-6">
+                  <h3 className="font-semibold">Student profile unavailable</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Your account is signed in, but no student profile could be
+                    loaded. Please contact an administrator.
+                  </p>
+                </section>
+              )}
+            </div>
+          ) : activeSection === 'My Courses' ? (
+            <StudentCoursesPage />
+          ) : activeSection === 'Attendance' ? (
+            <StudentAttendancePage />
+          ) : activeSection === 'Grades' ? (
+            <StudentGradesPage />
+          ) : (
+            <section className="mx-auto max-w-5xl rounded-2xl border border-border bg-card p-8 sm:p-10">
+              <p className="text-sm font-medium text-primary">
+                Student workspace
               </p>
-            </div>
 
-            <div>
-              <p className="text-sm text-muted-foreground">Account role</p>
-              <p className="mt-1 text-sm font-medium">Student</p>
-            </div>
-          </div>
-        </section>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+                {activeSection}
+              </h2>
 
-        <p className="mt-6 text-sm text-muted-foreground">
-          Your academic information and courses will be available here as those
-          student features are implemented.
-        </p>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                This section is not connected to student-specific academic data
+                yet. It will be implemented using endpoints that return only
+                information the signed-in student is authorized to access.
+              </p>
+            </section>
+          )}
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -523,6 +734,10 @@ function App() {
         <CourseOfferingsPage />
       ) : activePage === 'Semesters' ? (
         <SemestersPage />
+      ) : activePage === 'Attendance' ? (
+        <AttendancePage />
+      ) : activePage === 'Settings' ? (
+        <SettingsPage />
       ) : (
         <PlaceholderPage page={activePage} />
       )}

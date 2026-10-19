@@ -4,19 +4,28 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, notInArray } from 'drizzle-orm';
 import * as argon2 from 'argon2';
 import { DatabaseService } from '../../database/database.service.js';
 import {
+  attendance,
+  assessments,
   departments,
+  grades,
   roles,
   students,
   userRoles,
   users,
+  courseOfferings,
+  courses,
+  enrollments,
+  instructors,
+  semesters,
 } from '../../database/schema.js';
 import type { CreateStudentDto } from './dto/create-student.dto.js';
 import type { UpdateStudentDto } from './dto/update-student.dto.js';
 import { CreateStudentAccountDto } from './dto/create-student-account.dto.js';
+import type { UpdateMyStudentProfileDto } from './dto/update-my-student-profile.dto.js';
 
 function getPostgresErrorCode(error: unknown): string | undefined {
   const visited = new Set<object>();
@@ -315,6 +324,199 @@ export class StudentsService {
     }
 
     return student;
+  }
+
+  async findMyCourses(userId: string) {
+    const [student] = await this.database.db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(eq(students.userId, userId), isNull(students.deletedAt)))
+      .limit(1);
+
+    if (!student) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    return this.database.db
+      .select({
+        enrollmentId: enrollments.id,
+        enrollmentStatus: enrollments.status,
+        enrolledAt: enrollments.enrolledAt,
+        courseId: courses.id,
+        courseCode: courses.code,
+        courseTitle: courses.title,
+        courseDescription: courses.description,
+        creditValue: courses.creditValue,
+        courseOfferingId: courseOfferings.id,
+        sectionCode: courseOfferings.sectionCode,
+        semesterId: semesters.id,
+        academicYear: semesters.academicYear,
+        semesterTerm: semesters.term,
+        semesterStatus: semesters.status,
+        semesterStartDate: semesters.startDate,
+        semesterEndDate: semesters.endDate,
+        instructorId: instructors.id,
+        instructorFirstName: instructors.firstName,
+        instructorLastName: instructors.lastName,
+      })
+      .from(enrollments)
+      .innerJoin(
+        courseOfferings,
+        eq(enrollments.courseOfferingId, courseOfferings.id),
+      )
+      .innerJoin(courses, eq(courseOfferings.courseId, courses.id))
+      .innerJoin(semesters, eq(courseOfferings.semesterId, semesters.id))
+      .innerJoin(instructors, eq(courseOfferings.instructorId, instructors.id))
+      .where(
+        and(
+          eq(enrollments.studentId, student.id),
+          notInArray(enrollments.status, ['dropped', 'withdrawn']),
+        ),
+      )
+      .orderBy(desc(semesters.startDate), asc(courses.title));
+  }
+
+  async findMyGrades(userId: string) {
+    const [student] = await this.database.db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(eq(students.userId, userId), isNull(students.deletedAt)))
+      .limit(1);
+
+    if (!student) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    return this.database.db
+      .select({
+        enrollmentId: enrollments.id,
+        enrollmentStatus: enrollments.status,
+        courseOfferingId: courseOfferings.id,
+        sectionCode: courseOfferings.sectionCode,
+        courseCode: courses.code,
+        courseTitle: courses.title,
+        semesterId: semesters.id,
+        academicYear: semesters.academicYear,
+        semesterTerm: semesters.term,
+        assessmentId: assessments.id,
+        assessmentName: assessments.name,
+        assessmentType: assessments.type,
+        maxScore: assessments.maxScore,
+        weight: assessments.weight,
+        gradeId: grades.id,
+        score: grades.score,
+        gradedAt: grades.gradedAt,
+      })
+      .from(enrollments)
+      .innerJoin(
+        courseOfferings,
+        eq(enrollments.courseOfferingId, courseOfferings.id),
+      )
+      .innerJoin(courses, eq(courseOfferings.courseId, courses.id))
+      .innerJoin(semesters, eq(courseOfferings.semesterId, semesters.id))
+      .innerJoin(
+        assessments,
+        eq(assessments.courseOfferingId, courseOfferings.id),
+      )
+      .leftJoin(
+        grades,
+        and(
+          eq(grades.enrollmentId, enrollments.id),
+          eq(grades.assessmentId, assessments.id),
+        ),
+      )
+      .where(
+        and(
+          eq(enrollments.studentId, student.id),
+          notInArray(enrollments.status, ['dropped', 'withdrawn']),
+        ),
+      )
+      .orderBy(
+        desc(semesters.startDate),
+        asc(courses.title),
+        asc(assessments.name),
+      );
+  }
+
+  async findMyAttendance(userId: string) {
+    const [student] = await this.database.db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(eq(students.userId, userId), isNull(students.deletedAt)))
+      .limit(1);
+
+    if (!student) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    return this.database.db
+      .select({
+        id: attendance.id,
+        enrollmentId: attendance.enrollmentId,
+        sessionDate: attendance.sessionDate,
+        status: attendance.status,
+        recordedAt: attendance.recordedAt,
+        courseId: courses.id,
+        courseCode: courses.code,
+        courseTitle: courses.title,
+        courseOfferingId: courseOfferings.id,
+        sectionCode: courseOfferings.sectionCode,
+        semesterId: semesters.id,
+        academicYear: semesters.academicYear,
+        semesterTerm: semesters.term,
+      })
+      .from(attendance)
+      .innerJoin(enrollments, eq(attendance.enrollmentId, enrollments.id))
+      .innerJoin(
+        courseOfferings,
+        eq(enrollments.courseOfferingId, courseOfferings.id),
+      )
+      .innerJoin(courses, eq(courseOfferings.courseId, courses.id))
+      .innerJoin(semesters, eq(courseOfferings.semesterId, semesters.id))
+      .where(eq(enrollments.studentId, student.id))
+      .orderBy(desc(attendance.sessionDate), asc(courses.title));
+  }
+
+  async updateMyProfile(userId: string, dto: UpdateMyStudentProfileDto) {
+    const hasUpdateFields = Object.values(dto).some(
+      (value) => value !== undefined,
+    );
+
+    if (!hasUpdateFields) {
+      throw new BadRequestException('Provide at least one field to update');
+    }
+
+    const [existingStudent] = await this.database.db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(eq(students.userId, userId), isNull(students.deletedAt)))
+      .limit(1);
+
+    if (!existingStudent) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    const updateData = {
+      ...(dto.firstName !== undefined && { firstName: dto.firstName }),
+      ...(dto.lastName !== undefined && { lastName: dto.lastName }),
+      ...(dto.phone !== undefined && { phone: dto.phone }),
+      ...(dto.birth !== undefined && { birth: dto.birth }),
+      updatedAt: new Date(),
+    };
+
+    const [updatedStudent] = await this.database.db
+      .update(students)
+      .set(updateData)
+      .where(
+        and(eq(students.id, existingStudent.id), isNull(students.deletedAt)),
+      )
+      .returning({ id: students.id });
+
+    if (!updatedStudent) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    return this.findMyProfile(userId);
   }
 
   async findAll() {

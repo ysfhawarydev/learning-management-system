@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service.js';
-import { attendance, enrollments } from '../../database/schema.js';
+import {
+  attendance,
+  courseOfferings,
+  courses,
+  enrollments,
+  semesters,
+  students,
+} from '../../database/schema.js';
 import type { CreateAttendanceDto } from './dto/create-attendance.dto.js';
 import type { UpdateAttendanceDto } from './dto/update-attendance.dto.js';
 
@@ -85,8 +92,37 @@ export class AttendanceService {
 
   async findAll() {
     return this.database.db
-      .select()
+      .select({
+        id: attendance.id,
+        enrollmentId: attendance.enrollmentId,
+        sessionDate: attendance.sessionDate,
+        status: attendance.status,
+        notes: attendance.notes,
+        recordedAt: attendance.recordedAt,
+        createdAt: attendance.createdAt,
+        updatedAt: attendance.updatedAt,
+        studentId: students.id,
+        studentNumber: students.number,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        courseOfferingId: courseOfferings.id,
+        sectionCode: courseOfferings.sectionCode,
+        courseId: courses.id,
+        courseCode: courses.code,
+        courseTitle: courses.title,
+        semesterId: semesters.id,
+        academicYear: semesters.academicYear,
+        term: semesters.term,
+      })
       .from(attendance)
+      .innerJoin(enrollments, eq(attendance.enrollmentId, enrollments.id))
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(
+        courseOfferings,
+        eq(enrollments.courseOfferingId, courseOfferings.id),
+      )
+      .innerJoin(courses, eq(courseOfferings.courseId, courses.id))
+      .innerJoin(semesters, eq(courseOfferings.semesterId, semesters.id))
       .orderBy(attendance.sessionDate, attendance.createdAt);
   }
 

@@ -14,9 +14,11 @@ describe('AttendanceService', () => {
   const mockLimit = vi.fn();
   const mockSelectWhere = vi.fn(() => ({ limit: mockLimit }));
   const mockOrderBy = vi.fn();
+  const mockInnerJoin = vi.fn();
 
   const mockSelectFrom = vi.fn(() => ({
     where: mockSelectWhere,
+    innerJoin: mockInnerJoin,
     orderBy: mockOrderBy,
   }));
   const mockSelect = vi.fn(() => ({ from: mockSelectFrom }));
@@ -72,6 +74,12 @@ describe('AttendanceService', () => {
     mockSelect.mockReturnValue({ from: mockSelectFrom });
     mockSelectFrom.mockReturnValue({
       where: mockSelectWhere,
+      innerJoin: mockInnerJoin,
+      orderBy: mockOrderBy,
+    });
+
+    mockInnerJoin.mockReturnValue({
+      innerJoin: mockInnerJoin,
       orderBy: mockOrderBy,
     });
     mockSelectWhere.mockReturnValue({ limit: mockLimit });
@@ -172,11 +180,28 @@ describe('AttendanceService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('lists attendance records ordered by date and creation time', async () => {
-    mockOrderBy.mockResolvedValueOnce([attendance]);
+  it('lists attendance records with related data ordered by date and creation time', async () => {
+    const enrichedAttendance = {
+      ...attendance,
+      studentId: 'student-id',
+      studentNumber: 'STU001',
+      firstName: 'Youssef',
+      lastName: 'Elhawary',
+      courseOfferingId: 'offering-id',
+      sectionCode: 'A',
+      courseId: 'course-id',
+      courseCode: 'CS101',
+      courseTitle: 'Introduction to Computer Science',
+      semesterId: 'semester-id',
+      academicYear: '2026/2027',
+      term: 'fall',
+    };
 
-    await expect(service.findAll()).resolves.toEqual([attendance]);
+    mockOrderBy.mockResolvedValueOnce([enrichedAttendance]);
 
+    await expect(service.findAll()).resolves.toEqual([enrichedAttendance]);
+
+    expect(mockInnerJoin).toHaveBeenCalledTimes(5);
     expect(mockOrderBy).toHaveBeenCalledOnce();
   });
 

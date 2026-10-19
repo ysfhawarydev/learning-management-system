@@ -190,6 +190,87 @@ export async function getStudents(token: string): Promise<Student[]> {
   });
 }
 
+export type UpdateMyStudentProfileInput = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+  birth?: string;
+};
+
+export function getMyStudentProfile(token: string): Promise<Student> {
+  return apiRequest<Student>('/students/me', {
+    method: 'GET',
+    token,
+  });
+}
+
+export interface MyCourseRecord {
+  enrollmentId: string;
+  enrollmentStatus: string;
+  enrolledAt: string;
+  courseId: string;
+  courseCode: string;
+  courseTitle: string;
+  courseDescription: string | null;
+  creditValue: number;
+  courseOfferingId: string;
+  sectionCode: string;
+  semesterId: string;
+  academicYear: string;
+  semesterTerm: string;
+  semesterStatus: string;
+  semesterStartDate: string;
+  semesterEndDate: string;
+  instructorId: string;
+  instructorFirstName: string;
+  instructorLastName: string;
+}
+
+export function getMyCourses(token: string) {
+  return apiRequest<MyCourseRecord[]>('/students/me/courses', {
+    method: 'GET',
+    token,
+  });
+}
+
+export interface MyGradeRecord {
+  enrollmentId: string;
+  enrollmentStatus: string;
+  courseOfferingId: string;
+  sectionCode: string;
+  courseCode: string;
+  courseTitle: string;
+  semesterId: string;
+  academicYear: string;
+  semesterTerm: string;
+  assessmentId: string;
+  assessmentName: string;
+  assessmentType: string;
+  maxScore: string;
+  weight: string;
+  gradeId: string | null;
+  score: string | null;
+  gradedAt: string | null;
+}
+
+export function getMyGrades(token: string) {
+  return apiRequest<MyGradeRecord[]>('/students/me/grades', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function updateMyStudentProfile(
+  token: string,
+  input: UpdateMyStudentProfileInput,
+): Promise<Student> {
+  return apiRequest<Student>('/students/me', {
+    method: 'PATCH',
+    token,
+    body: input,
+  });
+}
+
 export interface Department {
   id: string;
   name: string;
@@ -568,4 +649,141 @@ export function deleteCourseOffering(token: string, id: string) {
       token,
     },
   );
+}
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
+export interface EnrollmentRecord {
+  id: string;
+  studentId: string;
+  courseOfferingId: string;
+  status: 'enrolled' | 'dropped' | 'completed' | 'withdrawn';
+  enrolledAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  enrollmentId: string;
+  sessionDate: string;
+  status: AttendanceStatus;
+  notes: string | null;
+  recordedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  studentId: string;
+  studentNumber: string;
+  firstName: string;
+  lastName: string;
+  courseOfferingId: string;
+  sectionCode: string;
+  courseId: string;
+  courseCode: string;
+  courseTitle: string;
+  semesterId: string;
+  academicYear: string;
+  term: SemesterTerm;
+}
+
+/**
+ * Attendance records visible to the authenticated student.
+ * Unlike the admin AttendanceRecord, this response intentionally excludes notes.
+ */
+export interface MyAttendanceRecord {
+  id: string;
+  enrollmentId: string;
+  sessionDate: string;
+  status: AttendanceStatus;
+  recordedAt: string;
+  courseId: string;
+  courseCode: string;
+  courseTitle: string;
+  courseOfferingId: string;
+  sectionCode: string;
+  semesterId: string;
+  academicYear: string;
+  semesterTerm: SemesterTerm;
+}
+
+export interface CreateAttendanceInput {
+  enrollmentId: string;
+  sessionDate: string;
+  status: AttendanceStatus;
+  notes?: string | null;
+}
+
+export interface UpdateAttendanceInput {
+  sessionDate?: string;
+  status?: AttendanceStatus;
+  notes?: string | null;
+}
+
+export function getEnrollments(token: string) {
+  return apiRequest<EnrollmentRecord[]>('/enrollments', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function getAttendance(token: string) {
+  return apiRequest<AttendanceRecord[]>('/attendance', {
+    method: 'GET',
+    token,
+  });
+}
+
+/**
+ * Fetches attendance records belonging only to the authenticated student.
+ */
+export function getMyAttendance(token: string): Promise<MyAttendanceRecord[]> {
+  return apiRequest<MyAttendanceRecord[]>('/students/me/attendance', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function createAttendance(token: string, input: CreateAttendanceInput) {
+  return apiRequest<{
+    id: string;
+    enrollmentId: string;
+    sessionDate: string;
+    status: AttendanceStatus;
+    notes: string | null;
+    recordedAt: string;
+    createdAt: string;
+    updatedAt: string;
+  }>('/attendance', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateAttendance(
+  token: string,
+  id: string,
+  input: UpdateAttendanceInput,
+) {
+  return apiRequest<{
+    id: string;
+    enrollmentId: string;
+    sessionDate: string;
+    status: AttendanceStatus;
+    notes: string | null;
+    recordedAt: string;
+    createdAt: string;
+    updatedAt: string;
+  }>(`/attendance/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    token,
+    body: input,
+  });
+}
+
+export function deleteAttendance(token: string, id: string) {
+  return apiRequest<unknown>(`/attendance/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token,
+  });
 }
