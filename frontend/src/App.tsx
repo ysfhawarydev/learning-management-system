@@ -37,6 +37,8 @@ import {
 } from '@/lib/api';
 import type { CourseRecord, Student } from '@/lib/api';
 import { AssessmentsPage } from '@/components/assessments-page';
+import { StudentAssignmentsPage } from '@/components/student-assignments-page';
+import { EnrollmentsPage } from '@/components/enrollments-page';
 
 const statistics = [
   {
@@ -341,11 +343,17 @@ function PlaceholderPage({ page }: { page: PageId }) {
 }
 
 type StudentSection =
-  'Overview' | 'My Courses' | 'Attendance' | 'Grades' | 'Settings';
+  | 'Overview'
+  | 'My Courses'
+  | 'Assignments'
+  | 'Attendance'
+  | 'Grades'
+  | 'Settings';
 
 const studentNavigation = [
   { label: 'Overview', icon: LayoutDashboard },
   { label: 'My Courses', icon: BookOpen },
+  { label: 'Assignments', icon: ClipboardList },
   { label: 'Attendance', icon: CalendarCheck },
   { label: 'Grades', icon: ClipboardList },
   { label: 'Settings', icon: Settings },
@@ -580,6 +588,8 @@ function StudentDashboard() {
             </div>
           ) : activeSection === 'My Courses' ? (
             <StudentCoursesPage />
+          ) : activeSection === 'Assignments' ? (
+            <StudentAssignmentsPage />
           ) : activeSection === 'Attendance' ? (
             <StudentAttendancePage />
           ) : activeSection === 'Grades' ? (
@@ -661,6 +671,8 @@ function App() {
         <CoursesPage />
       ) : activePage === 'Course Offerings' ? (
         <CourseOfferingsPage />
+      ) : activePage === 'Enrollments' ? (
+        <EnrollmentsPage />
       ) : activePage === 'Assessments' ? (
         <AssessmentsPage />
       ) : activePage === 'Semesters' ? (

@@ -17,6 +17,7 @@ import { GradesModule } from './modules/grades/grades.module.js';
 import { AttendanceModule } from './modules/attendance/attendance.module.js';
 import { TimetableModule } from './modules/timetable/timetable.module.js';
 import { AssignmentsModule } from './modules/assignments/assignments.module.js';
+import { QuizzesModule } from './modules/quizzes/quizzes.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -44,6 +45,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     AttendanceModule,
     TimetableModule,
     AssignmentsModule,
+    QuizzesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -67,7 +67,13 @@ export async function apiRequest<T>(
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const responseText = await response.text();
+
+  if (!responseText.trim()) {
+    return null as T;
+  }
+
+  return JSON.parse(responseText) as T;
 }
 
 export interface AuthUser {
@@ -724,6 +730,35 @@ export function getEnrollments(token: string) {
     method: 'GET',
     token,
   });
+}
+
+export interface CreateEnrollmentInput {
+  studentId: string;
+  courseOfferingId: string;
+  status?: EnrollmentRecord['status'];
+}
+
+export function createEnrollment(token: string, input: CreateEnrollmentInput) {
+  return apiRequest<EnrollmentRecord>('/enrollments', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateEnrollment(
+  token: string,
+  id: string,
+  input: { status: EnrollmentRecord['status'] },
+) {
+  return apiRequest<EnrollmentRecord>(
+    `/enrollments/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      token,
+      body: input,
+    },
+  );
 }
 
 export function getAttendance(token: string) {
