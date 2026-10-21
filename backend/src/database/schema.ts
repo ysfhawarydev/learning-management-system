@@ -14,3 +14,6 @@ export * from './schema/attendance.js';
 export * from './schema/timetable-slots.js';
 export * from './schema/assignments.js';
 export * from './schema/assignment-submissions.js';
+export * from './schema/quiz-questions.js';
+export * from './schema/quiz-options.js';
+export * from './schema/quiz-attempts.js';
