@@ -8,6 +8,7 @@ async function bootstrap() {
   });
 
   app.enableCors({
+    origin: process.env.FRONTEND_URL || false,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
