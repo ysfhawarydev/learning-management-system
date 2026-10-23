@@ -599,6 +599,91 @@ describe('Quizzes (e2e)', () => {
       });
   });
 
+  it('allows the assigned instructor to view quiz attempts and student results', async () => {
+    const { admin, instructorAccount, offering } = await setupDependencies();
+    const assessment = await createQuizAssessment(admin.token, offering.id);
+    const quiz = await createQuiz(admin.token, assessment.id);
+
+    const department = await createDepartment(admin.token);
+    const { account, student } = await createStudent(admin.token, department.id);
+    await createEnrollment(admin.token, student.id, offering.id);
+
+    const questions = quiz.body.questions as Array<{
+      id: string;
+      options: Array<{ id: string }>;
+    }>;
+
+    const answers = questions.map((question) => ({
+      questionId: question.id,
+      optionId: question.options[0]!.id,
+    }));
+
+    const submission = await request(app.getHttpServer())
+      .post(`/quizzes/${assessment.id}/attempts`)
+      .set('Authorization', `Bearer ${account.token}`)
+      .send({ answers })
+      .expect(201);
+
+    createdAttemptIds.push(submission.body.attempt.id as string);
+    createdGradeIds.push(submission.body.grade.id as string);
+
+    const response = await request(app.getHttpServer())
+      .get(`/quizzes/${assessment.id}/attempts`)
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .expect(200);
+
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0]).toMatchObject({
+      attemptId: submission.body.attempt.id,
+      assessmentId: assessment.id,
+      studentId: student.id,
+      firstName: 'E2E',
+      lastName: 'Student',
+      score: '100.00',
+      totalQuestions: 2,
+      correctAnswers: 2,
+    });
+    expect(response.body[0].studentNumber).toMatch(/^STU-/);
+    expect(Number(response.body[0].maxScore)).toBe(100);
+    expect(response.body[0]).toHaveProperty('email');
+    expect(response.body[0]).toHaveProperty('submittedAt');
+    expect(response.body[0]).not.toHaveProperty('answers');
+    expect(JSON.stringify(response.body)).not.toContain('isCorrect');
+  });
+
+  it('prevents an instructor from viewing another instructor quiz results', async () => {
+    const { admin, department, instructorAccount, offering } =
+      await setupDependencies();
+    const assessment = await createQuizAssessment(admin.token, offering.id);
+    await createQuiz(admin.token, assessment.id);
+
+    const otherInstructorAccount = await createAccount('instructor');
+    await createInstructor(otherInstructorAccount.id, department.id);
+
+    await request(app.getHttpServer())
+      .get(`/quizzes/${assessment.id}/attempts`)
+      .set('Authorization', `Bearer ${otherInstructorAccount.token}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/quizzes/${assessment.id}/attempts`)
+      .set('Authorization', `Bearer ${instructorAccount.token}`)
+      .expect(200);
+  });
+
+  it('forbids students from accessing instructor quiz results', async () => {
+    const { admin, offering, department } = await setupDependencies();
+    const assessment = await createQuizAssessment(admin.token, offering.id);
+    await createQuiz(admin.token, assessment.id);
+
+    const { account } = await createStudent(admin.token, department.id);
+
+    await request(app.getHttpServer())
+      .get(`/quizzes/${assessment.id}/attempts`)
+      .set('Authorization', `Bearer ${account.token}`)
+      .expect(403);
+  });
+
   it('rejects duplicate quiz submissions', async () => {
     const { admin, offering } = await setupDependencies();
     const assessment = await createQuizAssessment(admin.token, offering.id);
