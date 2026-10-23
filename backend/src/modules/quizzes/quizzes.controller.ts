@@ -38,6 +38,15 @@ export class QuizzesController {
     return this.quizzesService.findAll(request.user);
   }
 
+  @Get(':id/attempts')
+  @Roles('admin', 'instructor')
+  findAttempts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.quizzesService.findAttempts(id, request.user);
+  }
+
   @Get(':id/my-attempt')
   @Roles('student')
   findMyAttempt(

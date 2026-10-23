@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service.js';
 import {
   assessments,
@@ -17,6 +17,7 @@ import {
   quizOptions,
   quizQuestions,
   students,
+  users,
 } from '../../database/schema.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.js';
 import type { CreateQuizDto } from './dto/create-quiz.dto.js';
@@ -564,6 +565,52 @@ export class QuizzesService {
 
       throw error;
     }
+  }
+
+  async findAttempts(assessmentId: string, user: AuthenticatedUser) {
+    const [quiz] = await this.database.db
+      .select({
+        id: assessments.id,
+        instructorId: courseOfferings.instructorId,
+      })
+      .from(assessments)
+      .innerJoin(
+        courseOfferings,
+        eq(assessments.courseOfferingId, courseOfferings.id),
+      )
+      .where(
+        and(eq(assessments.id, assessmentId), eq(assessments.type, 'quiz')),
+      )
+      .limit(1);
+
+    if (!quiz) {
+      throw new NotFoundException(`Quiz with ID "${assessmentId}" not found`);
+    }
+
+    await this.assertCanManage(user, quiz.instructorId);
+
+    return this.database.db
+      .select({
+        attemptId: quizAttempts.id,
+        assessmentId: quizAttempts.assessmentId,
+        studentId: students.id,
+        studentNumber: students.number,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        email: users.email,
+        score: quizAttempts.score,
+        maxScore: assessments.maxScore,
+        totalQuestions: quizAttempts.totalQuestions,
+        correctAnswers: quizAttempts.correctAnswers,
+        submittedAt: quizAttempts.submittedAt,
+      })
+      .from(quizAttempts)
+      .innerJoin(enrollments, eq(quizAttempts.enrollmentId, enrollments.id))
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(users, eq(students.userId, users.id))
+      .innerJoin(assessments, eq(quizAttempts.assessmentId, assessments.id))
+      .where(eq(quizAttempts.assessmentId, assessmentId))
+      .orderBy(desc(quizAttempts.submittedAt));
   }
 
   async findMyAttempt(assessmentId: string, user: AuthenticatedUser) {

@@ -97,8 +97,6 @@ describe('QuizzesService', () => {
   let whereResults: unknown[][];
   let returningResults: unknown[][];
 
-  const mockLimit = vi.fn();
-  const mockWhere = vi.fn();
   const mockFrom = vi.fn();
   const mockSelect = vi.fn();
 
@@ -107,20 +105,47 @@ describe('QuizzesService', () => {
   const mockInsert = vi.fn();
   const mockTransaction = vi.fn();
 
-  const queryChain = {
-    innerJoin: vi.fn(),
-    where: mockWhere,
-    limit: mockLimit,
-    orderBy: vi.fn(),
-    then: (
-      resolve: (value: unknown) => unknown,
-      reject: (reason: unknown) => unknown,
-    ) => Promise.resolve(whereResults.shift() ?? []).then(resolve, reject),
-  };
-
   const transactionDatabase = {
     insert: mockInsert,
   };
+
+  function createQueryChain() {
+    const chain = {
+      innerJoin: vi.fn(),
+      where: vi.fn(),
+    };
+
+    chain.innerJoin.mockReturnValue(chain);
+
+    chain.where.mockImplementation(() => {
+      let terminalUsed = false;
+
+      const query = new Promise<unknown[]>((resolve) => {
+        queueMicrotask(() => {
+          if (!terminalUsed) {
+            resolve(whereResults.shift() ?? []);
+          }
+        });
+      }) as Promise<unknown[]> & {
+        limit: () => Promise<unknown[]>;
+        orderBy: () => Promise<unknown[]>;
+      };
+
+      query.limit = async () => {
+        terminalUsed = true;
+        return limitResults.shift() ?? [];
+      };
+
+      query.orderBy = async () => {
+        terminalUsed = true;
+        return whereResults.shift() ?? [];
+      };
+
+      return query;
+    });
+
+    return chain;
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -129,13 +154,7 @@ describe('QuizzesService', () => {
     whereResults = [];
     returningResults = [];
 
-    mockLimit.mockImplementation(async () => limitResults.shift() ?? []);
-
-    mockWhere.mockReturnValue(queryChain);
-    queryChain.innerJoin.mockReturnValue(queryChain);
-    queryChain.orderBy.mockReturnValue(queryChain);
-
-    mockFrom.mockReturnValue(queryChain);
+    mockFrom.mockImplementation(() => createQueryChain());
     mockSelect.mockReturnValue({ from: mockFrom });
 
     mockReturning.mockImplementation(
@@ -468,7 +487,6 @@ describe('QuizzesService', () => {
     ];
 
     limitResults.push([{ assessment, instructorId }], [student], [enrollment]);
-
     whereResults.push([publicQuestion], publicOptions);
 
     const result = await service.findOne(assessmentId, studentUser);
@@ -484,5 +502,79 @@ describe('QuizzesService', () => {
     });
 
     expect(JSON.stringify(result)).not.toContain('isCorrect');
+  });
+
+  it('returns quiz attempts with student details for an admin', async () => {
+    const submittedAt = new Date('2026-10-23T10:00:00.000Z');
+
+    const resultRow = {
+      attemptId,
+      assessmentId,
+      studentId,
+      studentNumber: 'STU-001',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@example.com',
+      score: '50.00',
+      maxScore: '100.00',
+      totalQuestions: 2,
+      correctAnswers: 1,
+      submittedAt,
+    };
+
+    limitResults.push([{ id: assessmentId, instructorId }]);
+    whereResults.push([resultRow]);
+
+    const result = await service.findAttempts(assessmentId, adminUser);
+
+    expect(result).toEqual([resultRow]);
+    expect(result[0]).not.toHaveProperty('answers');
+    expect(result[0]).not.toHaveProperty('isCorrect');
+  });
+
+  it('allows an instructor to view attempts for their own quiz', async () => {
+    const resultRow = {
+      attemptId,
+      assessmentId,
+      studentId,
+      studentNumber: 'STU-001',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@example.com',
+      score: '50.00',
+      maxScore: '100.00',
+      totalQuestions: 2,
+      correctAnswers: 1,
+      submittedAt: new Date('2026-10-23T10:00:00.000Z'),
+    };
+
+    limitResults.push(
+      [{ id: assessmentId, instructorId }],
+      [{ id: instructorId }],
+    );
+    whereResults.push([resultRow]);
+
+    const result = await service.findAttempts(assessmentId, instructorUser);
+
+    expect(result).toEqual([resultRow]);
+  });
+
+  it('denies instructors access to another instructor’s quiz attempts', async () => {
+    limitResults.push(
+      [{ id: assessmentId, instructorId }],
+      [{ id: otherInstructorId }],
+    );
+
+    await expect(
+      service.findAttempts(assessmentId, instructorUser),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('returns not found for a nonexistent quiz when listing attempts', async () => {
+    limitResults.push([]);
+
+    await expect(
+      service.findAttempts(assessmentId, adminUser),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
