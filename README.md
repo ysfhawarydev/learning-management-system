@@ -1,137 +1,296 @@
 # Student Management System
 
-A full-stack Student Management System repository, organized as an npm-workspaces monorepo.
+A full-stack academic management platform for managing students, instructors, courses, enrollments, assessments, grades, attendance, and academic activities through role-specific workspaces.
 
-## Repository Structure
+Built with **NestJS, React, TypeScript, PostgreSQL, and Drizzle ORM**, with a focus on maintainable architecture, secure authentication, automated testing, and a modern user experience.
+
+## Overview
+
+The Student Management System provides a centralized platform for academic administration, instructor workflows, and student activities.
+
+The application uses a workspace-based monorepo, keeping the backend and frontend in one repository while maintaining separate application packages.
+
+### Key Features
+
+- **Authentication and authorization** — JWT-based authentication and role-based access control.
+- **Student management** — student profiles and administrative management.
+- **Instructor management** — instructor records and department associations.
+- **Department management** — organize academic departments.
+- **Course management** — manage courses and course offerings.
+- **Enrollment management** — manage student course enrollments.
+- **Semester management** — organize academic periods.
+- **Assessments and grading** — manage assessments, grades, and academic results.
+- **Assignments and quizzes** — support assignment workflows, quiz management, submissions, and grading.
+- **Attendance management** — support attendance-related academic workflows.
+- **Role-specific workspaces** — dedicated experiences for administrators, instructors, and students.
+- **Registration approval** — pending registrations can be reviewed and approved by administrators.
+- **Responsive interface** — a modern interface designed for desktop and mobile layouts.
+- **Theme preferences** — System, Light, and Dark modes.
+
+## Tech Stack
+
+### Frontend
+
+| Technology | Purpose |
+|---|---|
+| React | Component-based user interface |
+| TypeScript | Static typing |
+| Vite | Development server and build tooling |
+| Tailwind CSS | Utility-first styling |
+| Base UI / shadcn tooling | UI component foundation and development |
+| Lucide React | Icons |
+
+### Backend
+
+| Technology | Purpose |
+|---|---|
+| Node.js | JavaScript runtime |
+| NestJS | Backend application framework |
+| TypeScript | Typed application development |
+| PostgreSQL | Relational database |
+| Drizzle ORM | Database queries and schema management |
+| JWT | Authentication |
+| Argon2 | Password hashing |
+| Vitest | Automated testing |
+
+### Development and Tooling
+
+- npm workspaces for monorepo management
+- Drizzle Kit for database migrations
+- Oxlint for linting
+- Git and GitHub for version control
+
+## Architecture
 
 ```text
 student-management-system/
-├── backend/             # NestJS API
-│   ├── src/              # Application source
-│   ├── test/             # End-to-end tests
-│   ├── drizzle/          # Database migrations and snapshots
-│   ├── .env.example      # Backend environment template
+├── backend/
+│   ├── src/
+│   │   ├── database/
+│   │   └── modules/
+│   ├── drizzle/
+│   ├── test/
 │   └── package.json
-├── package.json          # Workspace configuration and root scripts
-├── package-lock.json     # Shared npm lockfile
-└── README.md
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── contexts/
+│   │   ├── hooks/
+│   │   └── lib/
+│   └── package.json
+├── package.json
+└── package-lock.json
 ```
 
-## Technology Stack
+The backend is organized into feature modules, while the frontend separates pages, reusable components, contexts, hooks, and API communication.
 
-- **Backend:** NestJS, TypeScript, Node.js
-- **Database:** PostgreSQL
-- **ORM and migrations:** Drizzle ORM and Drizzle Kit
-- **Validation and authentication:** class-validator, JWT, Argon2
-- **Testing:** Vitest and Supertest
-- **Package management:** npm workspaces
-
-## Prerequisites
-
-Install a compatible Node.js version, npm, and PostgreSQL. Use the Node.js version supported by the project's dependencies.
+> The directory tree above shows the main structure; individual files and additional modules may vary as the project evolves.
 
 ## Getting Started
 
-### 1. Install dependencies
+### Prerequisites
 
-Run this command from the repository root:
+Install the following before running the project:
+
+- Node.js version compatible with the project
+- npm
+- PostgreSQL
+- Git
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/ysfhawarydev/learning-management-system.git
+cd learning-management-system
+```
+
+### 2. Install dependencies
+
+Install dependencies for the npm-workspaces monorepo from the repository root:
 
 ```bash
 npm install
 ```
 
-### 2. Configure environment variables
+### 3. Configure environment variables
 
-Copy the backend environment template:
+Configure the backend environment using the environment example supplied with the project.
 
-```bash
-cp backend/.env.example backend/.env
+At minimum, the backend needs a PostgreSQL connection string:
+
+```dotenv
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/student_management
+PORT=3000
 ```
 
-Update `backend/.env` with your local PostgreSQL connection details and the other values required by the template.
+Replace the example database credentials with your own local PostgreSQL credentials.
 
-Never commit `.env` files or real credentials.
+**Important:** Preserve any additional environment variables required by the backend configuration, including the JWT signing secret. Use the project's environment example as the source of truth for their exact names.
 
-### 3. Prepare the database
+Never commit `.env` files, production secrets, or database credentials to Git.
 
-Create the PostgreSQL database configured in `DATABASE_URL`.
+### 4. Create the database
 
-Review the existing Drizzle migrations before applying them. To apply migrations to the configured database:
+Create a PostgreSQL database named:
+
+```text
+student_management
+```
+
+Make sure the configured database user has the permissions required to run migrations and access the database.
+
+### 5. Apply database migrations
+
+From the repository root, run:
 
 ```bash
 npm run db:migrate
 ```
 
-**Important:** `db:migrate` targets the database configured for the backend. Verify `DATABASE_URL` before running it, especially when using a shared or production database.
+This applies the existing Drizzle migrations to the configured database.
 
-### 4. Start the backend
+Use the migration generation command when making schema changes:
 
-Development mode with automatic reload:
+```bash
+npm run db:generate
+```
+
+Review generated migrations before applying them.
+
+### 6. Start the applications
+
+Start the backend:
 
 ```bash
 npm run dev:backend
 ```
 
-Build the backend:
+Start the frontend in a separate terminal:
 
 ```bash
-npm run build
+npm run dev:frontend
 ```
 
-Start the backend without watch mode:
+Configure the frontend API URL if necessary:
 
-```bash
-npm run start:backend
+```dotenv
+VITE_API_URL=http://localhost:3000
 ```
 
-## Available Root Commands
+The frontend defaults to `http://localhost:3000` when `VITE_API_URL` is not specified.
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev:backend` | Start the backend in watch mode |
+Open the local URL printed by Vite in your terminal.
+
+## Available Commands
+
+Run these commands from the repository root.
+
+| Command | Description |
+|---|---|
+| `npm run dev:backend` | Start the NestJS development server |
 | `npm run start:backend` | Start the backend |
+| `npm run dev:frontend` | Start the Vite development server |
 | `npm run build` | Build the backend |
-| `npm run lint` | Lint backend source and tests |
-| `npm run format` | Format backend source and tests |
-| `npm run test` | Run unit tests |
+| `npm run build:frontend` | Type-check and build the frontend |
+| `npm run lint` | Lint the backend |
+| `npm run lint:frontend` | Lint the frontend |
+| `npm run test` | Run backend unit tests |
+| `npm run test:e2e` | Run backend end-to-end tests |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:cov` | Run tests with coverage |
-| `npm run test:e2e` | Run end-to-end tests against the dedicated test database |
-| `npm run db:generate` | Generate Drizzle migrations from schema changes |
-| `npm run db:migrate` | Apply pending Drizzle migrations |
+| `npm run db:generate` | Generate Drizzle migrations |
+| `npm run db:migrate` | Apply database migrations |
 
-## Testing
-
-Run the unit tests:
+For the final verification, run:
 
 ```bash
-npm run test
-```
-
-Run the end-to-end tests:
-
-```bash
+npm run lint
+npm run lint:frontend
+npm test
 npm run test:e2e
+npm run build
+npm run build:frontend
 ```
 
-The root `test:e2e` script rewrites the database name in `DATABASE_URL` to `student_management_test` before launching the backend E2E suite.
+**Testing note:** End-to-end tests use a separate database named `student_management_test`. Configure the test database before running them, and never point destructive test setup at your development or production database.
 
-Create that dedicated test database before running E2E tests. Confirm the connection points to the intended PostgreSQL server and that the test database exists.
+## Authentication and Authorization
 
-**Never remove the E2E database safety checks or point the test suite at a development or production database.** The E2E suite may create, update, and delete records in its test database.
+The backend implements JWT authentication and role-based authorization.
 
-## Working With npm Workspaces
+Supported roles include:
 
-Run commands from the repository root whenever a root script is available. To run a command directly inside the backend workspace, use:
+- **Administrator** — administrative management of academic resources.
+- **Instructor** — instructor-oriented teaching and assessment workflows.
+- **Student** — student-facing academic activities and personal records.
 
-```bash
-npm run <script> --workspace=student-management-system
-```
+New registrations may remain pending until administrator approval.
 
-## Version Control
+Protected backend endpoints enforce authentication and role requirements independently of frontend navigation. Hiding a page in the frontend is not a substitute for backend authorization.
 
-Use Git to track changes. Work on a feature branch, review the diff, run the relevant checks, and commit only after verifying the changes.
+## Database
+
+PostgreSQL stores the application's academic and account data. Drizzle ORM provides typed database access and schema management.
+
+The data model includes:
+
+- Users and roles
+- Student profiles
+- Instructor profiles
+- Departments
+- Courses and course offerings
+- Semesters
+- Enrollments
+- Assessments and grades
+- Assignments, quizzes, and related submissions
+- Attendance records
+
+The database schema and migration history are maintained in the backend workspace.
 
 ## Project Status
 
-The repository currently contains the NestJS backend, authentication and student-management functionality, PostgreSQL schema, Drizzle migrations, and unit and E2E tests. The frontend workspace has not yet been added.
+The project is under active development.
+
+The backend includes authentication, authorization, academic management modules, and automated unit and end-to-end tests. The frontend provides role-specific workspaces and academic management screens, with additional refinement and integration work continuing as the project evolves.
+
+## Future Improvements
+
+Potential areas for further development include:
+
+- Production deployment and environment configuration
+- Expanded reporting and academic analytics
+- Additional automated frontend tests
+- Accessibility and performance improvements
+- Further refinement of academic workflows
+- Continuous integration and deployment automation
+
+These are planned improvement areas, not claims that every item is already implemented.
+
+## Contributing
+
+Contributions, bug reports, and suggestions are welcome.
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make focused changes.
+4. Run the relevant lint checks, tests, and builds.
+5. Open a pull request describing the changes.
+
+## Security
+
+- Never commit credentials, API secrets, or private environment files.
+- Use strong, unique secrets in production.
+- Use a separate PostgreSQL database for automated tests.
+- Keep dependencies updated and review security advisories.
+- Enforce permissions on the backend for all protected operations.
+- Configure production CORS and database access according to the deployment environment.
+
+## License
+
+No license has been specified yet. All rights are reserved by default unless a license is added to the repository.
+
+---
+
+**Developed by Youssef Elhawary**
+
+GitHub: [@ysfhawarydev](https://github.com/ysfhawarydev)
