@@ -1026,3 +1026,143 @@ export function submitAssignment(
     },
   );
 }
+
+export interface CreateQuizOptionInput {
+  text: string;
+  position: number;
+  isCorrect: boolean;
+}
+
+export interface CreateQuizQuestionInput {
+  prompt: string;
+  position: number;
+  options: CreateQuizOptionInput[];
+}
+
+export interface CreateQuizInput {
+  assessmentId: string;
+  questions: CreateQuizQuestionInput[];
+}
+
+/* Quiz API */
+
+export interface QuizOptionRecord {
+  id: string;
+  text: string;
+  position: number;
+  isCorrect?: boolean;
+}
+
+export interface QuizQuestionRecord {
+  id: string;
+  assessmentId: string;
+  prompt: string;
+  position: number;
+  options: QuizOptionRecord[];
+}
+
+export interface QuizListItem {
+  assessment: AssessmentRecord;
+  courseOffering: CourseOfferingRecord;
+  enrollmentId?: string;
+}
+
+export interface QuizDetailRecord {
+  assessmentId: string;
+  questions: QuizQuestionRecord[];
+}
+
+export interface QuizAnswerInput {
+  questionId: string;
+  optionId: string;
+}
+
+export interface QuizAttemptResult {
+  attemptId: string;
+  assessmentId: string;
+  studentId: string;
+  studentNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  score: string;
+  maxScore: string;
+  totalQuestions: number;
+  correctAnswers: number;
+  submittedAt: string;
+}
+
+export interface QuizAttemptRecord {
+  id: string;
+  assessmentId: string;
+  score: string;
+  totalQuestions: number;
+  correctAnswers: number;
+  submittedAt: string;
+  createdAt: string;
+}
+
+export interface QuizSubmissionResponse {
+  attempt: QuizAttemptRecord;
+  grade: GradeRecord;
+}
+
+export function getQuizzes(token: string) {
+  return apiRequest<QuizListItem[]>('/quizzes', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function createQuiz(token: string, input: CreateQuizInput) {
+  return apiRequest<QuizDetailRecord>('/quizzes', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function getQuiz(token: string, id: string) {
+  return apiRequest<QuizDetailRecord>(`/quizzes/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    token,
+  });
+}
+
+export function getQuizAttempts(
+  token: string,
+  id: string,
+): Promise<QuizAttemptResult[]> {
+  return apiRequest<QuizAttemptResult[]>(
+    `/quizzes/${encodeURIComponent(id)}/attempts`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export function getMyQuizAttempt(token: string, id: string) {
+  return apiRequest<QuizAttemptRecord>(
+    `/quizzes/${encodeURIComponent(id)}/my-attempt`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export function submitQuiz(
+  token: string,
+  id: string,
+  answers: QuizAnswerInput[],
+) {
+  return apiRequest<QuizSubmissionResponse>(
+    `/quizzes/${encodeURIComponent(id)}/attempts`,
+    {
+      method: 'POST',
+      token,
+      body: { answers },
+    },
+  );
+}

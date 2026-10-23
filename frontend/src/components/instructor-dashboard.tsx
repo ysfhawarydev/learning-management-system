@@ -41,8 +41,9 @@ import type {
   CourseRecord,
   SemesterRecord,
 } from '@/lib/api';
+import InstructorQuizManager from '@/components/instructor-quiz-manager';
 
-type WorkspaceTab = 'Assignments' | 'Submissions';
+type WorkspaceTab = 'Assignments' | 'Submissions' | 'Quiz Management';
 
 function errorMessage(error: unknown): string {
   return error instanceof ApiError
@@ -423,23 +424,27 @@ function InstructorDashboard() {
         <section className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
-              {(['Assignments', 'Submissions'] as const).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setTab(item)}
-                  aria-pressed={tab === item}
-                  className={[
-                    'rounded-lg px-4 py-2 text-sm font-medium transition',
-                    tab === item
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  ].join(' ')}
-                >
-                  {item}
-                </button>
-              ))}
+              {(['Assignments', 'Submissions', 'Quiz Management'] as const).map(
+                (item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setTab(item)}
+                    aria-pressed={tab === item}
+                    className={[
+                      'rounded-lg px-4 py-2 text-sm font-medium transition',
+                      tab === item
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    ].join(' ')}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
             </div>
+
+            {tab === 'Quiz Management' && <InstructorQuizManager />}
 
             {tab === 'Assignments' && (
               <button

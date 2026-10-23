@@ -2,6 +2,7 @@ import {
   ArrowUpRight,
   BookOpen,
   CalendarCheck,
+  ClipboardCheck,
   GraduationCap,
   LogOut,
   Users,
@@ -39,6 +40,7 @@ import type { CourseRecord, Student } from '@/lib/api';
 import { AssessmentsPage } from '@/components/assessments-page';
 import { StudentAssignmentsPage } from '@/components/student-assignments-page';
 import { EnrollmentsPage } from '@/components/enrollments-page';
+import { StudentQuizzesPage } from '@/components/student-quizzes-page';
 
 const statistics = [
   {
@@ -346,6 +348,7 @@ type StudentSection =
   | 'Overview'
   | 'My Courses'
   | 'Assignments'
+  | 'Quizzes'
   | 'Attendance'
   | 'Grades'
   | 'Settings';
@@ -355,6 +358,7 @@ const studentNavigation = [
   { label: 'My Courses', icon: BookOpen },
   { label: 'Assignments', icon: ClipboardList },
   { label: 'Attendance', icon: CalendarCheck },
+  { label: 'Quizzes', icon: ClipboardCheck },
   { label: 'Grades', icon: ClipboardList },
   { label: 'Settings', icon: Settings },
 ] as const;
@@ -590,6 +594,8 @@ function StudentDashboard() {
             <StudentCoursesPage />
           ) : activeSection === 'Assignments' ? (
             <StudentAssignmentsPage />
+          ) : activeSection === 'Quizzes' ? (
+            <StudentQuizzesPage />
           ) : activeSection === 'Attendance' ? (
             <StudentAttendancePage />
           ) : activeSection === 'Grades' ? (
